@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-OutputDxf - Genesis TGZ -> DXF è½¬æ¢å·¥å·
-é¹ç¨å·¥ä½å®¤ åºå
-å¼å®¹ Python 2.6+ / Python 3.x | çº¯ Tkinter (æ  ttk)
+OutputDxf - Genesis TGZ -> DXF \u8f6c\u6362\u5de5\u5177
+\u9e4f\u7a0b\u5de5\u4f5c\u5ba4 \u51fa\u54c1
+\u517c\u5bb9 Python 2.6+ / Python 3.x | \u7eaf Tkinter (\u65e0 ttk)
 
-è®¾è®¡åå:
-  - py2 ä¸ææ Tkinter ææ¬ç¨æ¾å¼ u"..." (unicode)
-  - è·¯å¾æä½ä¿æå­èä¸²ï¼os.path åçå¤ç
-  - æä»¶ IO ç¨ codecs.open æäºè¿å¶æ¨¡å¼
+\u8bbe\u8ba1\u539f\u5219:
+  - py2 \u4e0b\u6240\u6709 Tkinter \u6587\u672c\u7528\u663e\u5f0f u"..." (unicode)
+  - \u8def\u5f84\u64cd\u4f5c\u4fdd\u6301\u5b57\u8282\u4e32\uff0cos.path \u539f\u751f\u5904\u7406
+  - \u6587\u4ef6 IO \u7528 codecs.open \u6216\u4e8c\u8fdb\u5236\u6a21\u5f0f
 """
 
 from __future__ import print_function
@@ -26,7 +26,7 @@ except ImportError:
 import os
 import sys
 
-# Python 2.6: json åºå¼å®¹
+# Python 2.6: json \u5e93\u517c\u5bb9
 try:
     import json
     HAS_JSON = True
@@ -41,11 +41,11 @@ if not HAS_JSON:
 
 
 # ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-# å·¥å·å½æ°
+# \u5de5\u5177\u51fd\u6570
 # ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 def _script_dir():
-    """èæ¬æå¨ç®å½ (py2 â unicode, py3 â str)"""
+    """\u811a\u672c\u6240\u5728\u76ee\u5f55 (py2 â unicode, py3 â str)"""
     d = os.path.dirname(os.path.abspath(__file__))
     if PY == 2 and isinstance(d, bytes):
         return d.decode(sys.getfilesystemencoding())
@@ -53,8 +53,8 @@ def _script_dir():
 
 
 def _join_path(*args):
-    """å®å¨è·¯å¾æ¼æ¥ â py2 è¿åå­èä¸² (é¿å unicode/bytes æ··ç¨)"""
-    # ç¡®ä¿ææ args æ¯ str/bytes (ä¸æ¯ unicode)
+    """\u5b89\u5168\u8def\u5f84\u62fc\u63a5 â py2 \u8fd4\u56de\u5b57\u8282\u4e32 (\u907f\u514d unicode/bytes \u6df7\u7528)"""
+    # \u786e\u4fdd\u6240\u6709 args \u662f str/bytes (\u4e0d\u662f unicode)
     parts = []
     for a in args:
         if PY == 2 and isinstance(a, unicode):
@@ -64,7 +64,7 @@ def _join_path(*args):
 
 
 def _utf8_open_read(path):
-    """utf-8 è¯»ææ¬"""
+    """utf-8 \u8bfb\u6587\u672c"""
     if PY == 2:
         import codecs
         return codecs.open(path, 'r', encoding='utf-8')
@@ -73,7 +73,7 @@ def _utf8_open_read(path):
 
 
 def _utf8_open_write(path):
-    """utf-8 åææ¬"""
+    """utf-8 \u5199\u6587\u672c"""
     if PY == 2:
         import codecs
         return codecs.open(path, 'w', encoding='utf-8')
@@ -82,7 +82,7 @@ def _utf8_open_write(path):
 
 
 # ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-# éç½®æä¹å
+# \u914d\u7f6e\u6301\u4e45\u5316
 # ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 CONFIG_FILE = _join_path(_script_dir(), 'config.ini')
@@ -134,11 +134,11 @@ def save_config(cfg):
 
 
 # ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-# å­ä½å¼å®¹: py2 Windows ä¸ Arial æ ä¸­æ â åéç³»ç» CJK å­ä½
+# \u5b57\u4f53\u517c\u5bb9: py2 Windows \u4e0b Arial \u65e0\u4e2d\u6587 â \u56de\u9000\u7cfb\u7edf CJK \u5b57\u4f53
 # ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 if PY == 2 and sys.platform == 'win32':
-    # æ£æµå¯ç¨ä¸­æå­ä½ (æä¼åçº§)
+    # \u68c0\u6d4b\u53ef\u7528\u4e2d\u6587\u5b57\u4f53 (\u6309\u4f18\u5148\u7ea7)
     _CJK_CANDIDATES = [
         'Microsoft YaHei',  # Win7+
         'SimSun',           # Win XP+
@@ -146,7 +146,7 @@ if PY == 2 and sys.platform == 'win32':
         'FangSong',
         'KaiTi',
     ]
-    _CJK_FONT = 'Arial'  # é»è®¤
+    _CJK_FONT = 'Arial'  # \u9ed8\u8ba4
 
     def _detect_font():
         try:
@@ -178,7 +178,7 @@ else:
 
 
 # ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-# ä¸»çªå£
+# \u4e3b\u7a97\u53e3
 # ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 class OutputDxfApp:
@@ -198,11 +198,11 @@ class OutputDxfApp:
     BORDER   = '#D5D8DC'
 
     def __init__(self):
-        # â py2 Windows Tcl ç¼ç ä¿®å¤: ä¸å è¿è¡ä¸­æå¯è½ä»ä¹±ç 
+        # â py2 Windows Tcl \u7f16\u7801\u4fee\u590d: \u4e0d\u52a0\u8fd9\u884c\u4e2d\u6587\u53ef\u80fd\u4ecd\u4e71\u7801
         if PY == 2:
             try:
                 self.root = tk.Tk()
-                # å°è¯è®¾ç½® Tcl ç¼ç ä¸º utf-8
+                # \u5c1d\u8bd5\u8bbe\u7f6e Tcl \u7f16\u7801\u4e3a utf-8
                 self.root.tk.eval('encoding system utf-8')
             except Exception:
                 self.root = tk.Tk()
@@ -213,7 +213,7 @@ class OutputDxfApp:
         self.root.resizable(0, 0)
         self.root.configure(bg=self.BG)
 
-        # å±ä¸­
+        # \u5c45\u4e2d
         self.root.update_idletasks()
         sw = self.root.winfo_screenwidth()
         sh = self.root.winfo_screenheight()
@@ -234,7 +234,7 @@ class OutputDxfApp:
         header.pack_propagate(0)
         tk.Label(header, text=u'OutputDxf', font=_FONT_TITLE,
                  bg=self.ACCENT, fg='white').pack(side=tk.LEFT, padx=14, pady=8)
-        tk.Label(header, text=u'é¹ç¨å·¥ä½å®¤ åºå', font=_FONT_SMALL,
+        tk.Label(header, text=u'\u9e4f\u7a0b\u5de5\u4f5c\u5ba4 \u51fa\u54c1', font=_FONT_SMALL,
                  bg=self.ACCENT, fg='#D4E6F1').pack(side=tk.RIGHT, padx=14, pady=14)
 
         body = tk.Frame(self.root, bg=self.BG)
@@ -268,46 +268,46 @@ class OutputDxfApp:
         btn.bind('<Enter>', lambda e: btn.config(bg=h))
         btn.bind('<Leave>', lambda e: btn.config(bg=n))
 
-    # ââ TGZ è·¯å¾ ââ
+    # ââ TGZ \u8def\u5f84 ââ
 
     def _card_tgz(self, parent):
-        inner = self._card(parent, u'TGZ æä»¶è·¯å¾')
+        inner = self._card(parent, u'TGZ \u6587\u4ef6\u8def\u5f84')
         v = tk.StringVar(); self.vars['tgz_path'] = v
         e = tk.Entry(inner, textvariable=v, font=_FONT_MONO,
                      relief=tk.FLAT, bd=1, bg='#F8F9FA')
         e.pack(side=tk.LEFT, fill=tk.X, expand=1, ipady=3)
         self._browse_btn(inner, self._on_tgz).pack(side=tk.RIGHT, padx=(4, 0))
 
-    # ââ è¾åºè·¯å¾ ââ
+    # ââ \u8f93\u51fa\u8def\u5f84 ââ
 
     def _card_output(self, parent):
-        inner = self._card(parent, u'DXF è¾åºç®å½')
+        inner = self._card(parent, u'DXF \u8f93\u51fa\u76ee\u5f55')
         v = tk.StringVar(); self.vars['output_path'] = v
         e = tk.Entry(inner, textvariable=v, font=_FONT_MONO,
                      relief=tk.FLAT, bd=1, bg='#F8F9FA')
         e.pack(side=tk.LEFT, fill=tk.X, expand=1, ipady=3)
         self._browse_btn(inner, self._on_out).pack(side=tk.RIGHT, padx=(4, 0))
 
-    # ââ åæ° ââ
+    # ââ \u53c2\u6570 ââ
 
     def _card_params(self, parent):
-        inner = self._card(parent, u'åæ°è®¾ç½®')
+        inner = self._card(parent, u'\u53c2\u6570\u8bbe\u7f6e')
 
         uf = tk.Frame(inner, bg=self.CARD_BG)
         uf.pack(anchor=tk.W, pady=(0, 4))
-        tk.Label(uf, text=u'åä½:', font=_FONT_BOLD,
+        tk.Label(uf, text=u'\u5355\u4f4d:', font=_FONT_BOLD,
                  bg=self.CARD_BG, fg=self.FG).pack(side=tk.LEFT)
 
         uv = tk.StringVar(value=self.cfg.get('unit', 'mm'))
         self.vars['unit'] = uv
-        for t, val in [(u'mm  æ¯«ç±³', 'mm'), (u'inch è±å¯¸', 'inch')]:
+        for t, val in [(u'mm  \u6beb\u7c73', 'mm'), (u'inch \u82f1\u5bf8', 'inch')]:
             tk.Radiobutton(uf, text=t, variable=uv, value=val,
                            bg=self.CARD_BG, font=_FONT_NORMAL,
                            selectcolor=self.CARD_BG).pack(side=tk.LEFT, padx=(2, 12))
 
         sf = tk.Frame(inner, bg=self.CARD_BG)
         sf.pack(anchor=tk.W)
-        tk.Label(sf, text=u'æ¶¨ç¼©:', font=_FONT_BOLD,
+        tk.Label(sf, text=u'\u6da8\u7f29:', font=_FONT_BOLD,
                  bg=self.CARD_BG, fg=self.FG).pack(side=tk.LEFT)
 
         tk.Label(sf, text=u' X=', font=_FONT_NORMAL,
@@ -326,21 +326,21 @@ class OutputDxfApp:
                  font=_FONT_MONO10, relief=tk.FLAT, bd=1,
                  bg='#F8F9FA').pack(side=tk.LEFT, ipady=2)
 
-        tk.Label(inner, text=u' 1.0 = åå§, 1.05 = Xæ¹åæä¼¸5%',
+        tk.Label(inner, text=u' 1.0 = \u539f\u59cb, 1.05 = X\u65b9\u5411\u62c9\u4f385%',
                  font=_FONT_SMALL, bg=self.CARD_BG, fg=self.GRAY).pack(
             anchor=tk.W, pady=(3, 0))
 
-    # ââ è¾åºæ¹å¼ ââ
+    # ââ \u8f93\u51fa\u65b9\u5f0f ââ
 
     def _card_mode(self, parent):
-        inner = self._card(parent, u'è¾åºæ¹å¼')
+        inner = self._card(parent, u'\u8f93\u51fa\u65b9\u5f0f')
 
         mv = tk.StringVar(value=self.cfg.get('mode', 'contour'))
         self.vars['mode'] = mv
 
         modes = [
-            ('contour', u'è½®å»è¾åº', u'åªè¾åºå¾å½¢å¤è½®å»çº¿'),
-            ('fill',    u'å¡«åè¾åº', u'è¾åºå®æ´å¡«åï¼å«éé¢ï¼'),
+            ('contour', u'\u8f6e\u5ed3\u8f93\u51fa', u'\u53ea\u8f93\u51fa\u56fe\u5f62\u5916\u8f6e\u5ed3\u7ebf'),
+            ('fill',    u'\u586b\u5145\u8f93\u51fa', u'\u8f93\u51fa\u5b8c\u6574\u586b\u5145\uff08\u542b\u94dc\u9762\uff09'),
         ]
         for val, label, desc in modes:
             rf = tk.Frame(inner, bg=self.CARD_BG)
@@ -351,40 +351,40 @@ class OutputDxfApp:
             tk.Label(rf, text=u' â ' + desc, font=_FONT_SMALL,
                      bg=self.CARD_BG, fg=self.GRAY).pack(side=tk.LEFT)
 
-    # ââ åºé¨æé® ââ
+    # ââ \u5e95\u90e8\u6309\u94ae ââ
 
     def _buttons(self):
         bf = tk.Frame(self.root, bg=self.BG)
         bf.pack(fill=tk.X, padx=8, pady=(6, 10))
 
-        self.status = tk.Label(bf, text=u'å°±ç»ª', font=_FONT_NORMAL,
+        self.status = tk.Label(bf, text=u'\u5c31\u7eea', font=_FONT_NORMAL,
                                bg=self.BG, fg=self.GRAY, anchor=tk.W)
         self.status.pack(side=tk.LEFT, padx=2)
 
-        q = tk.Button(bf, text=u' éåº ', command=self.root.quit,
+        q = tk.Button(bf, text=u' \u9000\u51fa ', command=self.root.quit,
                       bg=self.RED, fg='white', relief=tk.FLAT,
                       font=_FONT_BOLD, cursor='hand2', padx=14)
         q.pack(side=tk.RIGHT, padx=(3, 0), ipady=4)
         self._hover(q, self.RED, '#CB4335')
 
-        r = tk.Button(bf, text=u' â¶ å¼å§è½¬æ¢ ', command=self._run,
+        r = tk.Button(bf, text=u' â¶ \u5f00\u59cb\u8f6c\u6362 ', command=self._run,
                       bg=self.GREEN, fg='white', relief=tk.FLAT,
                       font=_FONT_BOLD, cursor='hand2', padx=16)
         r.pack(side=tk.RIGHT, padx=(0, 3), ipady=4)
         self._hover(r, self.GREEN, '#229954')
 
-    # ââ äº¤äº ââ
+    # ââ \u4ea4\u4e92 ââ
 
     def _on_tgz(self):
         p = filedialog.askopenfilename(
-            title=u'éæ© Genesis TGZ æä»¶',
-            filetypes=[(u'TGZ æä»¶', '*.tgz'), (u'GZ æä»¶', '*.gz'),
-                       (u'ææ', '*.*')])
+            title=u'\u9009\u62e9 Genesis TGZ \u6587\u4ef6',
+            filetypes=[(u'TGZ \u6587\u4ef6', '*.tgz'), (u'GZ \u6587\u4ef6', '*.gz'),
+                       (u'\u6240\u6709', '*.*')])
         if p:
             self.vars['tgz_path'].set(p)
 
     def _on_out(self):
-        p = filedialog.askdirectory(title=u'éæ©è¾åºç®å½')
+        p = filedialog.askdirectory(title=u'\u9009\u62e9\u8f93\u51fa\u76ee\u5f55')
         if p:
             self.vars['output_path'].set(p)
 
@@ -398,15 +398,15 @@ class OutputDxfApp:
         err = []
         tgz = self.vars['tgz_path'].get().strip()
         if not tgz:
-            err.append(u'è¯·éæ© TGZ æä»¶')
+            err.append(u'\u8bf7\u9009\u62e9 TGZ \u6587\u4ef6')
         elif not os.path.isfile(tgz):
-            err.append(u'TGZ æä»¶ä¸å­å¨')
+            err.append(u'TGZ \u6587\u4ef6\u4e0d\u5b58\u5728')
 
         out = self.vars['output_path'].get().strip()
         if not out:
-            err.append(u'è¯·éæ©è¾åºç®å½')
+            err.append(u'\u8bf7\u9009\u62e9\u8f93\u51fa\u76ee\u5f55')
         elif not os.path.isdir(out):
-            err.append(u'è¾åºç®å½ä¸å­å¨')
+            err.append(u'\u8f93\u51fa\u76ee\u5f55\u4e0d\u5b58\u5728')
 
         for axis in ('scale_x', 'scale_y'):
             try:
@@ -414,33 +414,33 @@ class OutputDxfApp:
                 if v <= 0:
                     raise ValueError
             except ValueError:
-                err.append(axis.replace('scale_', '') + u' æ¶¨ç¼©è¯·è¾å¥æ­£æ°')
+                err.append(axis.replace('scale_', '') + u' \u6da8\u7f29\u8bf7\u8f93\u5165\u6b63\u6570')
         return err
 
     def _run(self):
         errs = self._validate()
         if errs:
-            msg = u'è¯·ä¿®æ­£:\n\n' + u'\n'.join(u'  * ' + e for e in errs)
-            messagebox.showerror(u'è¾å¥éè¯¯', msg)
+            msg = u'\u8bf7\u4fee\u6b63:\n\n' + u'\n'.join(u'  * ' + e for e in errs)
+            messagebox.showerror(u'\u8f93\u5165\u9519\u8bef', msg)
             return
 
         for k in self.vars:
             self.cfg[k] = self.vars[k].get()
         save_config(self.cfg)
 
-        self.status.config(text=u'è½¬æ¢ä¸­...', fg=self.ORANGE)
+        self.status.config(text=u'\u8f6c\u6362\u4e2d...', fg=self.ORANGE)
         self.root.update_idletasks()
 
         try:
             out = self._convert()
-            self.status.config(text=u'å®æ: ' + out, fg=self.GREEN)
-            messagebox.showinfo(u'è½¬æ¢å®æ', 'DXF:\n' + out)
+            self.status.config(text=u'\u5b8c\u6210: ' + out, fg=self.GREEN)
+            messagebox.showinfo(u'\u8f6c\u6362\u5b8c\u6210', 'DXF:\n' + out)
         except Exception as ex:
-            self.status.config(text=u'å¤±è´¥', fg=self.RED)
-            messagebox.showerror(u'è½¬æ¢å¤±è´¥', str(ex))
+            self.status.config(text=u'\u5931\u8d25', fg=self.RED)
+            messagebox.showerror(u'\u8f6c\u6362\u5931\u8d25', str(ex))
 
     def _convert(self):
-        """è½¬æ¢å¼æå ä½ â å¯¹æ¥ Genesis Gateway + DXF Writer"""
+        """\u8f6c\u6362\u5f15\u64ce\u5360\u4f4d â \u5bf9\u63a5 Genesis Gateway + DXF Writer"""
         tgz    = self.vars['tgz_path'].get().strip()
         outdir = self.vars['output_path'].get().strip()
         unit   = self.vars['unit'].get()
@@ -453,7 +453,7 @@ class OutputDxfApp:
             base = base[:-4]
         outfile = _join_path(outdir, base + '.dxf')
 
-        # TODO: æ¿æ¢ä¸º Genesis Gateway + DXF Writer
+        # TODO: \u66ff\u6362\u4e3a Genesis Gateway + DXF Writer
         self._dummy_dxf(outfile, tgz, unit, sx, sy, mode)
         return outfile
 
