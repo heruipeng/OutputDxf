@@ -134,6 +134,50 @@ def save_config(cfg):
 
 
 # ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# å­ä½å¼å®¹: py2 Windows ä¸ Arial æ ä¸­æ â åéç³»ç» CJK å­ä½
+# ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+
+if PY == 2 and sys.platform == 'win32':
+    # æ£æµå¯ç¨ä¸­æå­ä½ (æä¼åçº§)
+    _CJK_CANDIDATES = [
+        'Microsoft YaHei',  # Win7+
+        'SimSun',           # Win XP+
+        'SimHei',
+        'FangSong',
+        'KaiTi',
+    ]
+    _CJK_FONT = 'Arial'  # é»è®¤
+
+    def _detect_font():
+        try:
+            root = tk.Tk()
+            available = set(root.tk.call('font', 'families'))
+            root.destroy()
+            for f in _CJK_CANDIDATES:
+                if f in available:
+                    return f
+        except Exception:
+            pass
+        return 'Arial'
+
+    _CJK_FONT = _detect_font()
+    _FONT_NORMAL = (_CJK_FONT, 9)
+    _FONT_BOLD   = (_CJK_FONT, 10, 'bold')
+    _FONT_TITLE  = (_CJK_FONT, 15, 'bold')
+    _FONT_SMALL  = (_CJK_FONT, 8)
+    _FONT_MONO   = ('Courier New', 9)
+    _FONT_MONO10 = ('Courier New', 10)
+else:
+    _CJK_FONT = None
+    _FONT_NORMAL = ('Arial', 9)
+    _FONT_BOLD   = ('Arial', 10, 'bold')
+    _FONT_TITLE  = ('Arial', 15, 'bold')
+    _FONT_SMALL  = ('Arial', 8)
+    _FONT_MONO   = ('Courier', 9)
+    _FONT_MONO10 = ('Courier', 10)
+
+
+# ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # ä¸»çªå£
 # ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
@@ -154,7 +198,16 @@ class OutputDxfApp:
     BORDER   = '#D5D8DC'
 
     def __init__(self):
-        self.root = tk.Tk()
+        # â py2 Windows Tcl ç¼ç ä¿®å¤: ä¸å è¿è¡ä¸­æå¯è½ä»ä¹±ç 
+        if PY == 2:
+            try:
+                self.root = tk.Tk()
+                # å°è¯è®¾ç½® Tcl ç¼ç ä¸º utf-8
+                self.root.tk.eval('encoding system utf-8')
+            except Exception:
+                self.root = tk.Tk()
+        else:
+            self.root = tk.Tk()
         self.root.title(self.TITLE)
         self.root.geometry('%dx%d' % (self.WIDTH, self.HEIGHT))
         self.root.resizable(0, 0)
@@ -179,9 +232,9 @@ class OutputDxfApp:
         header = tk.Frame(self.root, bg=self.ACCENT, height=46)
         header.pack(fill=tk.X)
         header.pack_propagate(0)
-        tk.Label(header, text=u'OutputDxf', font=('Arial', 15, 'bold'),
+        tk.Label(header, text=u'OutputDxf', font=_FONT_TITLE,
                  bg=self.ACCENT, fg='white').pack(side=tk.LEFT, padx=14, pady=8)
-        tk.Label(header, text=u'é¹ç¨å·¥ä½å®¤ åºå', font=('Arial', 8),
+        tk.Label(header, text=u'é¹ç¨å·¥ä½å®¤ åºå', font=_FONT_SMALL,
                  bg=self.ACCENT, fg='#D4E6F1').pack(side=tk.RIGHT, padx=14, pady=14)
 
         body = tk.Frame(self.root, bg=self.BG)
@@ -196,7 +249,7 @@ class OutputDxfApp:
         card = tk.Frame(parent, bg=self.CARD_BG, relief=tk.FLAT, bd=1,
                         highlightbackground=self.BORDER, highlightthickness=1)
         card.pack(fill=tk.X, pady=(0, 6))
-        tk.Label(card, text=u' â' + title, font=('Arial', 10, 'bold'),
+        tk.Label(card, text=u' â' + title, font=_FONT_BOLD,
                  bg=self.CARD_BG, fg=self.TITLE_FG, anchor=tk.W).pack(
             anchor=tk.W, padx=8, pady=(6, 1))
         inner = tk.Frame(card, bg=self.CARD_BG)
@@ -206,7 +259,7 @@ class OutputDxfApp:
     def _browse_btn(self, parent, cmd):
         btn = tk.Button(parent, text=u'...', command=cmd,
                         bg=self.ACCENT, fg='white', relief=tk.FLAT,
-                        font=('Arial', 9, 'bold'), cursor='hand2',
+                        font=_FONT_NORMAL, cursor='hand2',
                         width=3, height=1)
         self._hover(btn, self.ACCENT, '#2471A3')
         return btn
@@ -220,7 +273,7 @@ class OutputDxfApp:
     def _card_tgz(self, parent):
         inner = self._card(parent, u'TGZ æä»¶è·¯å¾')
         v = tk.StringVar(); self.vars['tgz_path'] = v
-        e = tk.Entry(inner, textvariable=v, font=('Courier', 9),
+        e = tk.Entry(inner, textvariable=v, font=_FONT_MONO,
                      relief=tk.FLAT, bd=1, bg='#F8F9FA')
         e.pack(side=tk.LEFT, fill=tk.X, expand=1, ipady=3)
         self._browse_btn(inner, self._on_tgz).pack(side=tk.RIGHT, padx=(4, 0))
@@ -230,7 +283,7 @@ class OutputDxfApp:
     def _card_output(self, parent):
         inner = self._card(parent, u'DXF è¾åºç®å½')
         v = tk.StringVar(); self.vars['output_path'] = v
-        e = tk.Entry(inner, textvariable=v, font=('Courier', 9),
+        e = tk.Entry(inner, textvariable=v, font=_FONT_MONO,
                      relief=tk.FLAT, bd=1, bg='#F8F9FA')
         e.pack(side=tk.LEFT, fill=tk.X, expand=1, ipady=3)
         self._browse_btn(inner, self._on_out).pack(side=tk.RIGHT, padx=(4, 0))
@@ -242,39 +295,39 @@ class OutputDxfApp:
 
         uf = tk.Frame(inner, bg=self.CARD_BG)
         uf.pack(anchor=tk.W, pady=(0, 4))
-        tk.Label(uf, text=u'åä½:', font=('Arial', 10),
+        tk.Label(uf, text=u'åä½:', font=_FONT_BOLD,
                  bg=self.CARD_BG, fg=self.FG).pack(side=tk.LEFT)
 
         uv = tk.StringVar(value=self.cfg.get('unit', 'mm'))
         self.vars['unit'] = uv
         for t, val in [(u'mm  æ¯«ç±³', 'mm'), (u'inch è±å¯¸', 'inch')]:
             tk.Radiobutton(uf, text=t, variable=uv, value=val,
-                           bg=self.CARD_BG, font=('Arial', 9),
+                           bg=self.CARD_BG, font=_FONT_NORMAL,
                            selectcolor=self.CARD_BG).pack(side=tk.LEFT, padx=(2, 12))
 
         sf = tk.Frame(inner, bg=self.CARD_BG)
         sf.pack(anchor=tk.W)
-        tk.Label(sf, text=u'æ¶¨ç¼©:', font=('Arial', 10),
+        tk.Label(sf, text=u'æ¶¨ç¼©:', font=_FONT_BOLD,
                  bg=self.CARD_BG, fg=self.FG).pack(side=tk.LEFT)
 
-        tk.Label(sf, text=u' X=', font=('Arial', 9),
+        tk.Label(sf, text=u' X=', font=_FONT_NORMAL,
                  bg=self.CARD_BG, fg=self.FG).pack(side=tk.LEFT, padx=(6, 0))
         svx = tk.StringVar(value=self.cfg.get('scale_x', '1.0'))
         self.vars['scale_x'] = svx
         tk.Entry(sf, textvariable=svx, width=6, justify=tk.CENTER,
-                 font=('Courier', 10), relief=tk.FLAT, bd=1,
+                 font=_FONT_MONO10, relief=tk.FLAT, bd=1,
                  bg='#F8F9FA').pack(side=tk.LEFT, ipady=2)
 
-        tk.Label(sf, text=u'  Y=', font=('Arial', 9),
+        tk.Label(sf, text=u'  Y=', font=_FONT_NORMAL,
                  bg=self.CARD_BG, fg=self.FG).pack(side=tk.LEFT, padx=(8, 0))
         svy = tk.StringVar(value=self.cfg.get('scale_y', '1.0'))
         self.vars['scale_y'] = svy
         tk.Entry(sf, textvariable=svy, width=6, justify=tk.CENTER,
-                 font=('Courier', 10), relief=tk.FLAT, bd=1,
+                 font=_FONT_MONO10, relief=tk.FLAT, bd=1,
                  bg='#F8F9FA').pack(side=tk.LEFT, ipady=2)
 
         tk.Label(inner, text=u' 1.0 = åå§, 1.05 = Xæ¹åæä¼¸5%',
-                 font=('Arial', 8), bg=self.CARD_BG, fg=self.GRAY).pack(
+                 font=_FONT_SMALL, bg=self.CARD_BG, fg=self.GRAY).pack(
             anchor=tk.W, pady=(3, 0))
 
     # ââ è¾åºæ¹å¼ ââ
@@ -293,9 +346,9 @@ class OutputDxfApp:
             rf = tk.Frame(inner, bg=self.CARD_BG)
             rf.pack(anchor=tk.W, pady=1)
             tk.Radiobutton(rf, text=label, variable=mv, value=val,
-                           bg=self.CARD_BG, font=('Arial', 10, 'bold'),
+                           bg=self.CARD_BG, font=_FONT_BOLD,
                            selectcolor=self.CARD_BG).pack(side=tk.LEFT)
-            tk.Label(rf, text=u' â ' + desc, font=('Arial', 8),
+            tk.Label(rf, text=u' â ' + desc, font=_FONT_SMALL,
                      bg=self.CARD_BG, fg=self.GRAY).pack(side=tk.LEFT)
 
     # ââ åºé¨æé® ââ
@@ -304,19 +357,19 @@ class OutputDxfApp:
         bf = tk.Frame(self.root, bg=self.BG)
         bf.pack(fill=tk.X, padx=8, pady=(6, 10))
 
-        self.status = tk.Label(bf, text=u'å°±ç»ª', font=('Arial', 9),
+        self.status = tk.Label(bf, text=u'å°±ç»ª', font=_FONT_NORMAL,
                                bg=self.BG, fg=self.GRAY, anchor=tk.W)
         self.status.pack(side=tk.LEFT, padx=2)
 
         q = tk.Button(bf, text=u' éåº ', command=self.root.quit,
                       bg=self.RED, fg='white', relief=tk.FLAT,
-                      font=('Arial', 10), cursor='hand2', padx=14)
+                      font=_FONT_BOLD, cursor='hand2', padx=14)
         q.pack(side=tk.RIGHT, padx=(3, 0), ipady=4)
         self._hover(q, self.RED, '#CB4335')
 
         r = tk.Button(bf, text=u' â¶ å¼å§è½¬æ¢ ', command=self._run,
                       bg=self.GREEN, fg='white', relief=tk.FLAT,
-                      font=('Arial', 10, 'bold'), cursor='hand2', padx=16)
+                      font=_FONT_BOLD, cursor='hand2', padx=16)
         r.pack(side=tk.RIGHT, padx=(0, 3), ipady=4)
         self._hover(r, self.GREEN, '#229954')
 
