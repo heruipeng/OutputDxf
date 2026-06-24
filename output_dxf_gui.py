@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-OutputDxf - Genesis TGZ → DXF 转换工具
-鹏程工作室 出品
-兼容 Python 2.6+ / Python 3.x | 纯 Tkinter (无需 ttk)
+OutputDxf - Genesis TGZ â DXF è½¬æ¢å·¥å·
+é¹ç¨å·¥ä½å®¤ åºå
+å¼å®¹ Python 2.6+ / Python 3.x | çº¯ Tkinter (æ é ttk)
 """
 
-from __future__ import unicode_literals, print_function
+# â ä¸ç¨ unicode_literals â ä¸­æè·¯å¾å¨ py2 ä¸ä¼ç¸
+#    ææçé¢æå­æå¨ç¨ u"..." åç¼
+from __future__ import print_function
 
 try:
     import Tkinter as tk
@@ -20,7 +22,7 @@ except ImportError:
 
 import os, sys
 
-# Python 2.6 没有 json → 用 ConfigParser 替代
+# Python 2.6 æ²¡æ json â ç¨ ConfigParser æ¿ä»£
 try:
     import json
     HAS_JSON = True
@@ -34,13 +36,13 @@ if not HAS_JSON:
         from configparser import ConfigParser
 
 
-# ══════════════════════════════════════════════════════
-# 配置持久化 (兼容 py2.6)
+# ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# éç½®æä¹å (å¼å®¹ py2.6 + ä¸­æè·¯å¾)
 
-CONFIG_FILE = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), 'config.ini')
-if PY == 2:
-    CONFIG_FILE = CONFIG_FILE.decode('utf-8')
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+# py2: å­èè·¯å¾ + b'config.ini' é¿å unicode æ··ç¨
+CONFIG_FILE = os.path.join(_script_dir,
+    b'config.ini' if PY == 2 else 'config.ini')
 
 DEFAULTS = {
     'tgz_path': '',
@@ -88,9 +90,9 @@ def save_config(cfg):
         pass
 
 
-# ══════════════════════════════════════════════════════
-# 主窗口 (纯 Tkinter, 无 ttk)
-# ══════════════════════════════════════════════════════
+# ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# ä¸»çªå£ (çº¯ Tkinter, æ  ttk)
+# ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 class OutputDxfApp:
     TITLE    = "OutputDxf - Genesis TGZ -> DXF"
@@ -116,7 +118,7 @@ class OutputDxfApp:
         self.root.resizable(0, 0)
         self.root.configure(bg=self.BG)
 
-        # 居中
+        # å±ä¸­
         self.root.update_idletasks()
         sw = self.root.winfo_screenwidth()
         sh = self.root.winfo_screenheight()
@@ -129,16 +131,16 @@ class OutputDxfApp:
         self._load_cfg()
         self.root.mainloop()
 
-    # ── UI 构建 ──
+    # ââ UI æå»º ââ
 
     def _build(self):
-        # 标题栏
+        # æ é¢æ 
         header = tk.Frame(self.root, bg=self.ACCENT, height=46)
         header.pack(fill=tk.X)
         header.pack_propagate(0)
         tk.Label(header, text="OutputDxf", font=("Arial", 15, "bold"),
                  bg=self.ACCENT, fg="white").pack(side=tk.LEFT, padx=14, pady=8)
-        tk.Label(header, text="鹏程工作室 出品", font=("Arial", 8),
+        tk.Label(header, text="é¹ç¨å·¥ä½å®¤ åºå", font=("Arial", 8),
                  bg=self.ACCENT, fg="#D4E6F1").pack(side=tk.RIGHT, padx=14, pady=14)
 
         body = tk.Frame(self.root, bg=self.BG)
@@ -150,13 +152,13 @@ class OutputDxfApp:
         self._card_mode(body)
         self._buttons()
 
-    # ── 卡片组件 ──
+    # ââ å¡çç»ä»¶ ââ
 
     def _card(self, parent, title):
         card = tk.Frame(parent, bg=self.CARD_BG, relief=tk.FLAT, bd=1,
                         highlightbackground=self.BORDER, highlightthickness=1)
         card.pack(fill=tk.X, pady=(0, 6))
-        tk.Label(card, text=" ▎" + title, font=("Arial", 10, "bold"),
+        tk.Label(card, text=" â" + title, font=("Arial", 10, "bold"),
                  bg=self.CARD_BG, fg=self.TITLE_FG, anchor=tk.W).pack(
             anchor=tk.W, padx=8, pady=(6, 1))
         inner = tk.Frame(card, bg=self.CARD_BG)
@@ -175,48 +177,48 @@ class OutputDxfApp:
         btn.bind("<Enter>", lambda e: btn.config(bg=h))
         btn.bind("<Leave>", lambda e: btn.config(bg=n))
 
-    # ── TGZ 路径 ──
+    # ââ TGZ è·¯å¾ ââ
 
     def _card_tgz(self, parent):
-        inner = self._card(parent, "TGZ 文件路径")
+        inner = self._card(parent, "TGZ æä»¶è·¯å¾")
         v = tk.StringVar(); self.vars['tgz_path'] = v
         e = tk.Entry(inner, textvariable=v, font=("Courier", 9),
                      relief=tk.FLAT, bd=1, bg="#F8F9FA")
         e.pack(side=tk.LEFT, fill=tk.X, expand=1, ipady=3)
         self._browse_btn(inner, self._on_tgz).pack(side=tk.RIGHT, padx=(4, 0))
 
-    # ── 输出路径 ──
+    # ââ è¾åºè·¯å¾ ââ
 
     def _card_output(self, parent):
-        inner = self._card(parent, "DXF 输出目录")
+        inner = self._card(parent, "DXF è¾åºç®å½")
         v = tk.StringVar(); self.vars['output_path'] = v
         e = tk.Entry(inner, textvariable=v, font=("Courier", 9),
                      relief=tk.FLAT, bd=1, bg="#F8F9FA")
         e.pack(side=tk.LEFT, fill=tk.X, expand=1, ipady=3)
         self._browse_btn(inner, self._on_out).pack(side=tk.RIGHT, padx=(4, 0))
 
-    # ── 参数 ──
+    # ââ åæ° ââ
 
     def _card_params(self, parent):
-        inner = self._card(parent, "参数设置")
+        inner = self._card(parent, "åæ°è®¾ç½®")
 
-        # 单位
+        # åä½
         uf = tk.Frame(inner, bg=self.CARD_BG)
         uf.pack(anchor=tk.W, pady=(0, 4))
-        tk.Label(uf, text="单位:", font=("Arial", 10),
+        tk.Label(uf, text="åä½:", font=("Arial", 10),
                  bg=self.CARD_BG, fg=self.FG).pack(side=tk.LEFT)
 
         uv = tk.StringVar(value=self.cfg.get('unit', 'mm'))
         self.vars['unit'] = uv
-        for t, val in [("mm  毫米", "mm"), ("inch 英寸", "inch")]:
+        for t, val in [("mm  æ¯«ç±³", "mm"), ("inch è±å¯¸", "inch")]:
             tk.Radiobutton(uf, text=t, variable=uv, value=val,
                            bg=self.CARD_BG, font=("Arial", 9),
                            selectcolor=self.CARD_BG).pack(side=tk.LEFT, padx=(2, 12))
 
-        # 涨缩
+        # æ¶¨ç¼©
         sf = tk.Frame(inner, bg=self.CARD_BG)
         sf.pack(anchor=tk.W)
-        tk.Label(sf, text="涨缩:", font=("Arial", 10),
+        tk.Label(sf, text="æ¶¨ç¼©:", font=("Arial", 10),
                  bg=self.CARD_BG, fg=self.FG).pack(side=tk.LEFT)
 
         tk.Label(sf, text=" X=", font=("Arial", 9),
@@ -235,21 +237,21 @@ class OutputDxfApp:
                  font=("Courier", 10), relief=tk.FLAT, bd=1,
                  bg="#F8F9FA").pack(side=tk.LEFT, ipady=2)
 
-        tk.Label(inner, text=" 1.0 = 原始  1.05 = X方向拉伸5%",
+        tk.Label(inner, text=" 1.0 = åå§  1.05 = Xæ¹åæä¼¸5%",
                  font=("Arial", 8), bg=self.CARD_BG, fg=self.GRAY).pack(
             anchor=tk.W, pady=(3, 0))
 
-    # ── 输出方式 ──
+    # ââ è¾åºæ¹å¼ ââ
 
     def _card_mode(self, parent):
-        inner = self._card(parent, "输出方式")
+        inner = self._card(parent, "è¾åºæ¹å¼")
 
         mv = tk.StringVar(value=self.cfg.get('mode', 'contour'))
         self.vars['mode'] = mv
 
         modes = [
-            ("contour", "轮廓输出", "只输出图形外轮廓线"),
-            ("fill", "填充输出", "输出完整填充（含铜面）"),
+            ("contour", "è½®å»è¾åº", "åªè¾åºå¾å½¢å¤è½®å»çº¿"),
+            ("fill", "å¡«åè¾åº", "è¾åºå®æ´å¡«åï¼å«éé¢ï¼"),
         ]
         for val, label, desc in modes:
             rf = tk.Frame(inner, bg=self.CARD_BG)
@@ -257,43 +259,43 @@ class OutputDxfApp:
             tk.Radiobutton(rf, text=label, variable=mv, value=val,
                            bg=self.CARD_BG, font=("Arial", 10, "bold"),
                            selectcolor=self.CARD_BG).pack(side=tk.LEFT)
-            tk.Label(rf, text=" — " + desc, font=("Arial", 8),
+            tk.Label(rf, text=" â " + desc, font=("Arial", 8),
                      bg=self.CARD_BG, fg=self.GRAY).pack(side=tk.LEFT)
 
-    # ── 底部按钮 ──
+    # ââ åºé¨æé® ââ
 
     def _buttons(self):
         bf = tk.Frame(self.root, bg=self.BG)
         bf.pack(fill=tk.X, padx=8, pady=(6, 10))
 
-        self.status = tk.Label(bf, text="就绪", font=("Arial", 9),
+        self.status = tk.Label(bf, text="å°±ç»ª", font=("Arial", 9),
                                bg=self.BG, fg=self.GRAY, anchor=tk.W)
         self.status.pack(side=tk.LEFT, padx=2)
 
-        q = tk.Button(bf, text=" 退出 ", command=self.root.quit,
+        q = tk.Button(bf, text=" éåº ", command=self.root.quit,
                       bg=self.RED, fg="white", relief=tk.FLAT,
                       font=("Arial", 10), cursor="hand2", padx=14)
         q.pack(side=tk.RIGHT, padx=(3, 0), ipady=4)
         self._hover(q, self.RED, "#CB4335")
 
-        r = tk.Button(bf, text=" ▶ 开始转换 ", command=self._run,
+        r = tk.Button(bf, text=" â¶ å¼å§è½¬æ¢ ", command=self._run,
                       bg=self.GREEN, fg="white", relief=tk.FLAT,
                       font=("Arial", 10, "bold"), cursor="hand2", padx=16)
         r.pack(side=tk.RIGHT, padx=(0, 3), ipady=4)
         self._hover(r, self.GREEN, "#229954")
 
-    # ── 交互 ──
+    # ââ äº¤äº ââ
 
     def _on_tgz(self):
         p = filedialog.askopenfilename(
-            title="选择 Genesis TGZ 文件",
-            filetypes=[("TGZ 文件", "*.tgz"), ("GZ 文件", "*.gz"),
-                       ("所有", "*.*")])
+            title="éæ© Genesis TGZ æä»¶",
+            filetypes=[("TGZ æä»¶", "*.tgz"), ("GZ æä»¶", "*.gz"),
+                       ("ææ", "*.*")])
         if p:
             self.vars['tgz_path'].set(p)
 
     def _on_out(self):
-        p = filedialog.askdirectory(title="选择输出目录")
+        p = filedialog.askdirectory(title="éæ©è¾åºç®å½")
         if p:
             self.vars['output_path'].set(p)
 
@@ -307,15 +309,15 @@ class OutputDxfApp:
         err = []
         tgz = self.vars['tgz_path'].get().strip()
         if not tgz:
-            err.append("请选择 TGZ 文件")
+            err.append("è¯·éæ© TGZ æä»¶")
         elif not os.path.isfile(tgz):
-            err.append("TGZ 文件不存在")
+            err.append("TGZ æä»¶ä¸å­å¨")
 
         out = self.vars['output_path'].get().strip()
         if not out:
-            err.append("请选择输出目录")
+            err.append("è¯·éæ©è¾åºç®å½")
         elif not os.path.isdir(out):
-            err.append("输出目录不存在")
+            err.append("è¾åºç®å½ä¸å­å¨")
 
         for axis in ('scale_x', 'scale_y'):
             try:
@@ -323,33 +325,33 @@ class OutputDxfApp:
                 if v <= 0:
                     raise ValueError
             except ValueError:
-                err.append(axis.replace('scale_', '') + " 涨缩请输入正数")
+                err.append(axis.replace('scale_', '') + " æ¶¨ç¼©è¯·è¾å¥æ­£æ°")
         return err
 
     def _run(self):
         errs = self._validate()
         if errs:
-            msg = "请修正:\n\n" + "\n".join("  * " + e for e in errs)
-            messagebox.showerror("输入错误", msg)
+            msg = "è¯·ä¿®æ­£:\n\n" + "\n".join("  * " + e for e in errs)
+            messagebox.showerror("è¾å¥éè¯¯", msg)
             return
 
         for k in self.vars:
             self.cfg[k] = self.vars[k].get()
         save_config(self.cfg)
 
-        self.status.config(text="转换中...", fg=self.ORANGE)
+        self.status.config(text="è½¬æ¢ä¸­...", fg=self.ORANGE)
         self.root.update_idletasks()
 
         try:
             out = self._convert()
-            self.status.config(text="完成: " + out, fg=self.GREEN)
-            messagebox.showinfo("转换完成", "DXF:\n" + out)
+            self.status.config(text="å®æ: " + out, fg=self.GREEN)
+            messagebox.showinfo("è½¬æ¢å®æ", "DXF:\n" + out)
         except Exception as ex:
-            self.status.config(text="失败", fg=self.RED)
-            messagebox.showerror("转换失败", str(ex))
+            self.status.config(text="å¤±è´¥", fg=self.RED)
+            messagebox.showerror("è½¬æ¢å¤±è´¥", str(ex))
 
     def _convert(self):
-        """转换引擎占位 — 对接 Genesis Gateway + DXF Writer"""
+        """è½¬æ¢å¼æå ä½ â å¯¹æ¥ Genesis Gateway + DXF Writer"""
         tgz   = self.vars['tgz_path'].get().strip()
         outdir = self.vars['output_path'].get().strip()
         unit  = self.vars['unit'].get()
@@ -362,7 +364,7 @@ class OutputDxfApp:
             base = base[:-4]
         outfile = os.path.join(outdir, base + '.dxf')
 
-        # TODO: 替换为 Genesis Gateway + DXF Writer
+        # TODO: æ¿æ¢ä¸º Genesis Gateway + DXF Writer
         self._dummy_dxf(outfile, tgz, unit, sx, sy, mode)
         return outfile
 
