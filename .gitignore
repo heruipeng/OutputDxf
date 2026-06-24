@@ -1,0 +1,11 @@
+# OutputDxf - Genesis TGZ to DXF Converter
+# 鹏程工作室 出品
+# Python 2.7 / Tkinter GUI
+
+*.pyc
+*.pyo
+__pycache__/
+*.tgz.gz
+output/
+*.dxf~
+*.log
