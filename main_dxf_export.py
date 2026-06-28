@@ -684,6 +684,8 @@ class DxfExportApp(object):
         self._setup_root()
         self._setup_fonts()
         self._build_ui()
+        self.genesis_dir = ''
+        self.xmanager_dir = ''
 
         # 加载配置
         self._apply_cfg_defaults()
@@ -740,6 +742,12 @@ class DxfExportApp(object):
             p = self.cfg['paths'].get('output_path', '').strip()
             if p:
                 self.var_output.set(p)
+            self.genesis_dir = self.cfg['paths'].get('genesis_dir', '').strip()
+            if os.path.isdir(self.genesis_dir) is False:
+                self._log(u'genesis安装路径异常:%s' % self.genesis_dir)
+            self.xmanager_dir = self.cfg['paths'].get('xmanager_dir', '').strip()
+            if os.path.isdir(self.xmanager_dir) is False:
+                self._log(u'genesis xmanager路径异常:%s' % self.xmanager_dir)
         if 'layers' in self.cfg:
             # 存储预选图层列表, 等 Job 加载后调用
             self._cfg_layers = [
@@ -1334,6 +1342,9 @@ class DxfExportApp(object):
 
     def _load_job_info(self,tgz_path,job,step,layer,output_dir,unit,dxf_mode):
         self._log(','.join([tgz_path,job,step,layer,output_dir,unit,dxf_mode]))
+        GENESIS_GET = os.getenv('GENESIS_DIR','D:/genesis')
+        Xmanager139 = GENESIS_GET + '/Xmanager139/'
+        print(GENESIS_GET)
 
 
 # ==========================================================================
