@@ -1348,25 +1348,23 @@ class DxfExportApp(object):
         # 检查并关闭 XMANAGER.exe (Genesis 批处理不需要 X 窗口)
         self._kill_xmanager()
 
-        # 静默启动, 不弹控制台 (Windows only)
+        # 启动 Genesis 相关程序, 显示控制台
         si = None
         cf = 0
         if sys.platform == 'win32':
             try:
                 si = subprocess.STARTUPINFO()
                 si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                si.wShowWindow = 0  # SW_HIDE
-                cf = 0x08000000  # CREATE_NO_WINDOW
+                si.wShowWindow = 5  # SW_SHOW — 显示窗口
             except Exception:
                 si = None
-                cf = 0
 
         subprocess.Popen(Xmanager139, shell=True,
-                        startupinfo=si, creationflags=cf,
+                        startupinfo=si,
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         print(GENESIS_GET)
         subprocess.Popen(GENESIS_GET, shell=True,
-                        startupinfo=si, creationflags=cf,
+                        startupinfo=si,
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
