@@ -1341,44 +1341,38 @@ class DxfExportApp(object):
 
     @staticmethod
     def _kill_xmanager():
-        """关闭 XMANAGER.exe 进程 (Genesis 批处理不需要 X 窗口)
-        Python 2/3 兼容, 仅 Windows 有效"""
+        """关闭 XMANAGER.exe 进程 (大小写不敏感匹配)"""
         import subprocess
         try:
             if sys.platform != 'win32':
                 return
-            # 可能匹配的进程名
-            targets = ['XMANAGER.exe', 'XManager.exe', 'Xmanager.exe']
+            # 全量 tasklist, 不用 /fi 过滤 (避免大小写漏掉)
+            p = subprocess.Popen('tasklist /fo csv', shell=True,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            out, _ = p.communicate()
+            if isinstance(out, bytes):
+                out = out.decode('gbk', errors='replace')
+            print('[OutputDxf] tasklist 输出 (前200字):\n' + out[:200])
+
             killed = False
-            for name in targets:
-                # tasklist 查找进程, shell=True 传字符串
-                cmd_find = 'tasklist /fi "IMAGENAME eq %s" /fo csv' % name
-                try:
-                    p = subprocess.Popen(cmd_find, shell=True,
-                                        stdout=subprocess.PIPE,
-                                        stderr=subprocess.PIPE)
-                    out, _ = p.communicate()
-                    if isinstance(out, bytes):
-                        out = out.decode('gbk', errors='replace')
-                except Exception:
-                    out = ''
-                if name in out:
-                    # 方案1: taskkill /f /t 强制杀 (带子进程)
-                    cmd = 'taskkill /f /t /im %s' % name
-                    try:
-                        subprocess.call(cmd, shell=True)
-                    except Exception:
-                        pass
-                    # 方案2: wmic 保险 (taskkill 管不掉时)
-                    try:
-                        wmic = 'wmic process where name="%s" delete' % name
-                        subprocess.call(wmic, shell=True)
-                    except Exception:
-                        pass
-                    print('[OutputDxf] %s 已关闭' % name)
-                    killed = True
+            for line in out.split('\n'):
+                if 'xmanager' not in line.lower():
+                    continue
+                # CSV 格式: "映像名称","PID","会话名",...
+                parts = line.split(',')
+                if not parts:
+                    continue
+                proc_name = parts[0].strip('"').strip()
+                if not proc_name or 'xmanager' not in proc_name.lower():
+                    continue
+                print('[OutputDxf] 发现进程: %s' % proc_name)
+                # taskkill /f /t
+                subprocess.call('taskkill /f /t /im "%s"' % proc_name, shell=True)
+                print('[OutputDxf] 已 kill: %s' % proc_name)
+                killed = True
+
             if not killed:
-                print('[OutputDxf] 未找到 XMANAGER 进程, 无需关闭')
+                print('[OutputDxf] 未找到 xmanager 进程, 无需关闭')
         except Exception:
             pass
 
