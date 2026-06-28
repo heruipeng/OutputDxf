@@ -1288,6 +1288,7 @@ class DxfExportApp(object):
         """导出按钮 — 校验参数后占位提示 (后续自行添加导出逻辑)"""
         # 校验输入
         job_path = self.var_job.get().strip()
+        job = job_path.split('/')[-1].replace('.tgz','')
         step = self.var_step.get().strip()
         output_dir = self.var_output.get().strip()
         unit = self.var_unit.get()
@@ -1308,15 +1309,15 @@ class DxfExportApp(object):
             messagebox.showwarning(u'提示', u'请至少选择一个图层')
             return
 
-        mode_text = u'轮廓' if dxf_mode == 'outline' else u'实体'
+        # mode_text = u'轮廓' if dxf_mode == 'outline' else u'实体'
 
         # 参数汇总
         self._log(u'========== 导出参数确认 ==========')
         self._log(u'Job:     %s' % job_path)
         self._log(u'Step:    %s' % step)
-        self._log(u'单位:    %s' % ('毫米' if unit == 'mm' else '英寸'))
+        self._log(u'单位:    %s' % unit)
         self._log(u'输出:    %s' % output_dir)
-        self._log(u'模式:    %s' % mode_text)
+        self._log(u'模式:    %s' % dxf_mode)
         self._log(u'图层:    %s' % (', '.join(selected_layers)))
         self._log(u'=====================================')
 
@@ -1326,9 +1327,13 @@ class DxfExportApp(object):
             u'DXF 模式: %s\n'
             u'输出目录: %s\n\n'
             u'导出逻辑待后续添加 (在 get_layer_data() 中对接 Genesis API)。' %
-            (len(selected_layers), mode_text, output_dir))
+            (len(selected_layers), dxf_mode, output_dir))
 
-        self.status_label.config(text=u'就绪 (导出逻辑待添加)', fg=self.GRAY)
+        # self.status_label.config(text=u'就绪 (导出逻辑待添加)', fg=self.GRAY)
+        self._load_job_info(job_path,job,step,','.join(selected_layers),output_dir,unit,dxf_mode)
+
+    def _load_job_info(self,tgz_path,job,step,layer,output_dir,unit,dxf_mode):
+        self._log(','.join([tgz_path,job,step,layer,output_dir,unit,dxf_mode]))
 
 
 # ==========================================================================
