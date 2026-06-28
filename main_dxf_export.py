@@ -1,25 +1,21 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 =============================================================================
  main_dxf_export.py  —  GENESIS 2000 自动导出 DXF 工具
  鹏程工作室 出品
 =============================================================================
- 运行环境 : Python 2.7  |  纯 Tkinter GUI  |  无第三方依赖
- 兼容    : Windows Genesis / Linux Genesis
- 调用方式 : python main_dxf_export.py          (独立启动)
-           gen_cmd main_dxf_export.py          (Genesis 命令行调用)
-           Genesis 菜单一键启动 (配合 .scr 注册脚本)
+ 运行环境 : Python 3.x  |  纯 Tkinter GUI  |  无第三方依赖
+ 兼容    : Windows / Linux
+ 调用方式 : python main_dxf_export.py
 =============================================================================
  模块划分:
-   1. DxfWriter     — 纯文本 DXF R12/R14 写入模块
-   2. JobAdapter    — Genesis 数据接口适配层
+   1. DxfWriter     — 纯文本 DXF 写入模块
+   2. JobAdapter    — 数据接口适配层
    3. DataProcessor — 图形数据预处理 (过滤/去重/优化)
    4. DxfExportApp  — Tkinter GUI 主界面
 =============================================================================
 """
-
-from __future__ import print_function, unicode_literals, division
 
 import sys
 import os
@@ -31,42 +27,14 @@ import tarfile
 import tempfile
 import shutil
 import fnmatch
+import json
+import configparser
+from collections import OrderedDict
 
-# ==========================================================================
-# Python 2.7 Tkinter 兼容
-# ==========================================================================
-try:
-    import Tkinter as tk
-    import tkFileDialog as filedialog
-    import tkMessageBox as messagebox
-    import tkFont
-    import ScrolledText as scrolledtext
-    PY_VERSION = 2
-except ImportError:
-    import tkinter as tk
-    from tkinter import filedialog, messagebox
-    from tkinter import font as tkFont
-    from tkinter import scrolledtext
-    PY_VERSION = 3
-
-# OrderedDict — Python 2.7 内置
-try:
-    from collections import OrderedDict
-except ImportError:
-    OrderedDict = dict
-
-# json — Python 2.6+ 内置; 2.6 无则回退 ConfigParser
-try:
-    import json
-    HAS_JSON = True
-except ImportError:
-    HAS_JSON = False
-
-if not HAS_JSON:
-    try:
-        from ConfigParser import ConfigParser
-    except ImportError:
-        from configparser import ConfigParser
+import tkinter as tk
+from tkinter import filedialog, messagebox
+from tkinter import font as tkFont
+from tkinter import scrolledtext
 
 # ==========================================================================
 # 全局常量
@@ -351,9 +319,6 @@ class DxfWriter(object):
 
         return self.filepath
 
-
-# -*- coding: utf-8 -*-
-# auto-generated replacement block
 
 # ==========================================================================
 # 2. JobAdapter — TGZ 解压 & Step/Layer 扫描
@@ -696,17 +661,12 @@ class DxfExportApp(object):
 
     @staticmethod
     def _cfg_path():
-        """配置文件路径: 同目录下 outputdxf.cfg (Python 2.7 中文路径兼容)"""
+        """配置文件路径: 同目录下 outputdxf.cfg"""
         try:
             script_dir = os.path.dirname(os.path.abspath(__file__))
-            # Python 2.7: 如果路径含中文, __file__ 可能是字节串, 需要显式转 unicode
-            if isinstance(script_dir, bytes):
-                script_dir = script_dir.decode(sys.getfilesystemencoding())
-            return os.path.join(script_dir, u'outputdxf.cfg')
+            return os.path.join(script_dir, 'outputdxf.cfg')
         except Exception:
-            # 降级: 用当前工作目录
-            return os.path.join(os.getcwdu() if hasattr(os, 'getcwdu') else os.getcwd(),
-                                u'outputdxf.cfg')
+            return os.path.join(os.getcwd(), 'outputdxf.cfg')
 
     @staticmethod
     def _load_cfg():
@@ -716,18 +676,8 @@ class DxfExportApp(object):
         if not os.path.isfile(cfg_path):
             return cfg
         try:
-            import ConfigParser as cp
-        except ImportError:
-            import configparser as cp
-        try:
-            parser = cp.ConfigParser()
-            # Python 2.7: ConfigParser.read() 对 unicode 路径兼容性差,
-            # 用 open + readfp 绕过
-            if PY_VERSION == 2 and isinstance(cfg_path, unicode):
-                with open(cfg_path, 'r') as fh:
-                    parser.readfp(fh)
-            else:
-                parser.read(cfg_path)
+            parser = configparser.ConfigParser()
+            parser.read(cfg_path)
             for section in parser.sections():
                 cfg[section] = {}
                 for k, v in parser.items(section):
@@ -767,15 +717,7 @@ class DxfExportApp(object):
     # -- 窗口初始化 ---------------------------------------------------------
 
     def _setup_root(self):
-        if PY_VERSION == 2:
-            try:
-                self.root = tk.Tk()
-                self.root.tk.eval('encoding system utf-8')
-            except Exception:
-                self.root = tk.Tk()
-        else:
-            self.root = tk.Tk()
-
+        self.root = tk.Tk()
         self.root.title(self.TITLE)
         self.root.geometry('%dx%d' % (self.WIDTH, self.HEIGHT))
         self.root.resizable(0, 0)
@@ -792,8 +734,7 @@ class DxfExportApp(object):
     def _setup_fonts(self):
         """自适应字体"""
         is_win = sys.platform == 'win32'
-        if PY_VERSION == 2 and is_win:
-            # Windows Python 2 — 检测中文字体
+        if is_win:
             cjk = 'Arial'
             try:
                 r = tk.Tk()
