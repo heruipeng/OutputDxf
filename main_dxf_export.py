@@ -952,7 +952,7 @@ class DxfExportApp(object):
         self.layer_info.pack(fill=tk.X, padx=2, pady=(0, 4))
 
         # 图层多选区域 — 固定 260px, 微灰底色
-        tree_frame = tk.Frame(inner, bg='#F2F4F4', height=260, bd=1,
+        tree_frame = tk.Frame(inner, bg='#F2F4F4', height=80, bd=1,
                               relief=tk.SUNKEN)
         tree_frame.pack(fill=tk.X, pady=(0, 2))
         tree_frame.pack_propagate(0)
