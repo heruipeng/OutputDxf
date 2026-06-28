@@ -686,20 +686,30 @@ class DxfExportApp(object):
 
     @staticmethod
     def _cfg_path():
-        """配置文件路径: 同目录下 outputdxf.cfg"""
+        """配置文件路径: 优先同目录, 降级当前工作目录"""
+        candidates = []
         try:
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            return os.path.join(script_dir, 'outputdxf.cfg')
+            candidates.append(os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), 'outputdxf.cfg'))
         except Exception:
-            return os.path.join(os.getcwd(), 'outputdxf.cfg')
+            pass
+        candidates.append(os.path.join(os.getcwd(), 'outputdxf.cfg'))
+        for p in candidates:
+            if os.path.isfile(p):
+                return p
+        return candidates[0]  # 返回同目录路径 (供后续写入参考)
 
     @staticmethod
     def _load_cfg():
-        """读取配置文件 (Python 2.7 中文路径兼容)"""
+        """从配置文件加载参数"""
         cfg = {}
         cfg_path = DxfExportApp._cfg_path()
+        # 打印搜索路径, 方便排查配置加载问题
+        print('[OutputDxf] 配置文件路径: ' + cfg_path)
         if not os.path.isfile(cfg_path):
+            print('[OutputDxf] ⚠ 配置文件未找到, 使用默认设置')
             return cfg
+        print('[OutputDxf] ✓ 已找到配置文件')
         try:
             parser = configparser.ConfigParser()
             parser.read(cfg_path)
@@ -713,6 +723,11 @@ class DxfExportApp(object):
 
     def _apply_cfg_defaults(self):
         """应用配置文件默认值到界面"""
+        if not self.cfg:
+            return  # 未找到配置文件, 静默跳过
+
+        self._log(u'已加载配置: ' + self._cfg_path())
+
         if 'paths' in self.cfg:
             p = self.cfg['paths'].get('output_path', '').strip()
             if p:
