@@ -377,6 +377,7 @@ class GenesisAPI(object):
         self.job_path = ''
         self.steps = []
         self.layers = {}
+        self.extracted_dir = ''     # tgz 解压后的真实目录
         self._init_genesis()
 
     def _init_genesis(self):
@@ -391,16 +392,27 @@ class GenesisAPI(object):
     # -- Job 操作 ----------------------------------------------------------
 
     def open_job(self, job_path):
-        """打开 Genesis Job"""
+        """打开 Genesis Job (tgz自动解压到临时目录)"""
         self.job_path = job_path
+        self.extracted_dir = ''
+
         if self.inside_genesis:
             try:
                 self.genesis_module.open_job(job_path)
                 return True
             except Exception:
                 return False
-        else:
-            return os.path.isdir(job_path) or os.path.isfile(job_path)
+
+        if not os.path.isdir(job_path) and not os.path.isfile(job_path):
+            return False
+
+        # 如果是 tgz, 立即解压供后续扫描
+        if self._is_tgz():
+            extracted = self._extract_tgz()
+            if not extracted:
+                return False
+
+        return True
 
     def get_job_name(self):
         """获取当前 Job 名称"""
@@ -428,6 +440,95 @@ class GenesisAPI(object):
         self.steps = self._scan_steps_fs()
         return self.steps
 
+    def _is_tgz(self):
+        """判断 job_path 是否是压缩包"""
+        lp = self.job_path.lower()
+        return (lp.endswith('.tgz') or lp.endswith('.tar.gz')) \
+               and os.path.isfile(self.job_path)
+
+    def _extract_tgz(self):
+        """解压 tgz 到系统临时目录, 返回解压后的根目录
+
+        Genesis tgz 内部结构:
+            {job_name}/
+              steps/
+                {step_name}/
+                  layers/
+                    {layer_name}/
+                      ...
+        解压到:  C:/tmp/{job_name}/  或  /tmp/{job_name}/
+        """
+        if not self._is_tgz():
+            return self.job_path
+
+        job_name = self.get_job_name()
+
+        # 临时目录: Windows C:/tmp  /  Linux /tmp
+        if sys.platform == 'win32':
+            tmp_root = os.path.join('C:', os.sep, 'tmp')
+        else:
+            tmp_root = os.path.join(os.sep, 'tmp')
+
+        self.extracted_dir = os.path.join(tmp_root, job_name)
+
+        # 如果已解压且 tgz 未变, 复用
+        marker = os.path.join(self.extracted_dir, '.extracted')
+        if os.path.isdir(self.extracted_dir) and os.path.isfile(marker):
+            try:
+                with open(marker, 'r') as f:
+                    cached = f.read().strip()
+                if cached == self.job_path:
+                    return self.extracted_dir
+            except Exception:
+                pass
+
+        # 清空旧解压目录
+        if os.path.isdir(self.extracted_dir):
+            try:
+                shutil.rmtree(self.extracted_dir)
+            except Exception:
+                pass
+
+        if not os.path.isdir(self.extracted_dir):
+            os.makedirs(self.extracted_dir)
+
+        # 解压
+        try:
+            with tarfile.open(self.job_path, 'r:gz') as tf:
+                tf.extractall(self.extracted_dir)
+            # 写标记文件, 记录来源 tgz
+            with open(marker, 'w') as f:
+                f.write(self.job_path)
+        except Exception:
+            return None
+
+        return self.extracted_dir
+
+    def _find_steps_dir(self, root_dir):
+        """在解压目录下定位 steps/ 子目录
+
+        Genesis tgz 解压后可能的结构:
+          方案A: root/steps/{step}/layers/...        (标准)
+          方案B: root/{job_name}/steps/{step}/...    (有外层目录)
+          方案C: root/{step}/layers/...              (steps 就是根)
+        """
+        # 优先: root/steps
+        direct = os.path.join(root_dir, 'steps')
+        if os.path.isdir(direct):
+            return direct
+
+        # 搜索子目录中的 steps/
+        try:
+            for item in os.listdir(root_dir):
+                candidate = os.path.join(root_dir, item, 'steps')
+                if os.path.isdir(candidate):
+                    return candidate
+        except Exception:
+            pass
+
+        # 降级: 把根目录当 steps
+        return root_dir
+
     def _scan_steps_fs(self):
         """从本地目录/压缩包扫描 Step 列表"""
         steps = []
@@ -435,23 +536,39 @@ class GenesisAPI(object):
         if not job_path:
             return steps
 
-        # 如果是 .tgz / .tar.gz 压缩包
-        is_tgz = (job_path.endswith('.tgz') or job_path.endswith('.tar.gz')) and os.path.isfile(job_path)
-        if is_tgz:
+        if self._is_tgz():
+            # 解压到临时目录
+            extracted = self._extract_tgz()
+            if not extracted:
+                # 尝试直接从 tgz 内扫描 (兼容旧逻辑)
+                try:
+                    with tarfile.open(job_path, 'r:gz') as tf:
+                        for member in tf.getmembers():
+                            parts = member.name.split('/')
+                            if len(parts) >= 2 and parts[0] not in steps:
+                                if not parts[0].startswith('.'):
+                                    steps.append(parts[0])
+                except Exception:
+                    pass
+                self.steps = sorted(steps)
+                return self.steps
+
+            # 定位 steps/ 目录
+            steps_dir = self._find_steps_dir(extracted)
             try:
-                with tarfile.open(job_path, 'r:gz') as tf:
-                    for member in tf.getmembers():
-                        parts = member.name.split('/')
-                        if len(parts) >= 2 and parts[0] not in steps:
-                            if not parts[0].startswith('.'):
-                                steps.append(parts[0])
+                for item in os.listdir(steps_dir):
+                    full = os.path.join(steps_dir, item)
+                    if os.path.isdir(full) and not item.startswith('.'):
+                        steps.append(item)
             except Exception:
                 pass
+
         elif os.path.isdir(job_path):
             # 本地目录
+            steps_dir = self._find_steps_dir(job_path)
             try:
-                for item in os.listdir(job_path):
-                    full = os.path.join(job_path, item)
+                for item in os.listdir(steps_dir):
+                    full = os.path.join(steps_dir, item)
                     if os.path.isdir(full) and not item.startswith('.'):
                         steps.append(item)
             except Exception:
@@ -477,36 +594,48 @@ class GenesisAPI(object):
         return self._scan_layers_fs(step_name)
 
     def _scan_layers_fs(self, step_name):
-        """从本地文件系统扫描图层"""
+        """从本地文件系统扫描图层
+
+        Genesis tgz 解压后的图层在: steps/{step}/layers/{layer}/
+        """
         layers = []
         job_path = self.job_path
         if not job_path:
             return layers
 
-        step_dir = os.path.join(job_path, step_name)
-
-        # .tgz / .tar.gz 压缩包模式
-        is_tgz = (job_path.endswith('.tgz') or job_path.endswith('.tar.gz')) and os.path.isfile(job_path)
-        if is_tgz:
-            try:
-                with tarfile.open(job_path, 'r:gz') as tf:
-                    for member in tf.getmembers():
-                        parts = member.name.split('/')
-                        if (len(parts) >= 3 and parts[0] == step_name
-                                and not parts[0].startswith('.')):
-                            lname = parts[1]
-                            if lname not in layers:
-                                layers.append(lname)
-            except Exception:
-                pass
-        elif os.path.isdir(step_dir):
-            try:
-                for item in os.listdir(step_dir):
-                    full = os.path.join(step_dir, item)
-                    if os.path.isdir(full) and not item.startswith('.'):
-                        layers.append(item)
-            except Exception:
-                pass
+        if self._is_tgz():
+            # 走解压目录
+            extracted = self.extracted_dir or self._extract_tgz()
+            if extracted:
+                steps_dir = self._find_steps_dir(extracted)
+                step_dir = os.path.join(steps_dir, step_name)
+                # 图层可能在 step/layers/ 或 step/ 根
+                for candidate in [os.path.join(step_dir, 'layers'), step_dir]:
+                    if os.path.isdir(candidate):
+                        try:
+                            for item in os.listdir(candidate):
+                                full = os.path.join(candidate, item)
+                                if os.path.isdir(full) and not item.startswith('.'):
+                                    layers.append(item)
+                        except Exception:
+                            pass
+                        if layers:
+                            break
+        elif os.path.isdir(job_path):
+            # 本地目录
+            steps_dir = self._find_steps_dir(job_path)
+            step_dir = os.path.join(steps_dir, step_name)
+            for candidate in [os.path.join(step_dir, 'layers'), step_dir]:
+                if os.path.isdir(candidate):
+                    try:
+                        for item in os.listdir(candidate):
+                            full = os.path.join(candidate, item)
+                            if os.path.isdir(full) and not item.startswith('.'):
+                                layers.append(item)
+                    except Exception:
+                        pass
+                    if layers:
+                        break
 
         return sorted(layers)
 
@@ -1168,7 +1297,10 @@ class DxfExportApp(object):
             messagebox.showerror(u'错误', u'无法打开 Job:\n' + path)
             return
 
-        self._log(u'Job 名称: ' + self.genesis.get_job_name())
+        job_name = self.genesis.get_job_name()
+        self._log(u'Job 名称: ' + job_name)
+        if self.genesis.extracted_dir:
+            self._log(u'解压至: ' + self.genesis.extracted_dir)
         self._on_step_refresh()
 
     def _on_step_refresh(self):
