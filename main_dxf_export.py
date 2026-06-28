@@ -406,7 +406,9 @@ class GenesisAPI(object):
         """获取当前 Job 名称"""
         if self.job_path:
             base = os.path.basename(self.job_path.rstrip('/\\'))
-            if base.endswith('.tgz'):
+            if base.endswith('.tar.gz'):
+                base = base[:-7]
+            elif base.endswith('.tgz'):
                 base = base[:-4]
             return base
         return 'UNKNOWN'
@@ -433,8 +435,9 @@ class GenesisAPI(object):
         if not job_path:
             return steps
 
-        # 如果是 .tgz 压缩包
-        if job_path.endswith('.tgz') and os.path.isfile(job_path):
+        # 如果是 .tgz / .tar.gz 压缩包
+        is_tgz = (job_path.endswith('.tgz') or job_path.endswith('.tar.gz')) and os.path.isfile(job_path)
+        if is_tgz:
             try:
                 with tarfile.open(job_path, 'r:gz') as tf:
                     for member in tf.getmembers():
@@ -482,8 +485,9 @@ class GenesisAPI(object):
 
         step_dir = os.path.join(job_path, step_name)
 
-        # .tgz 模式
-        if job_path.endswith('.tgz') and os.path.isfile(job_path):
+        # .tgz / .tar.gz 压缩包模式
+        is_tgz = (job_path.endswith('.tgz') or job_path.endswith('.tar.gz')) and os.path.isfile(job_path)
+        if is_tgz:
             try:
                 with tarfile.open(job_path, 'r:gz') as tf:
                     for member in tf.getmembers():
@@ -1126,12 +1130,16 @@ class DxfExportApp(object):
         self.root.update_idletasks()
 
     def _on_job_browse(self):
-        """选择 Job 路径 (.tgz 或 目录)"""
-        p = filedialog.askdirectory(title=u'选择 Genesis Job 目录')
+        """选择 Job 路径 (.tgz 优先, 目录备选)"""
+        # 优先弹出文件选择器 —— Genesis Job 最常见格式为 .tgz
+        p = filedialog.askopenfilename(
+            title=u'选择 Genesis Job .tgz 文件',
+            filetypes=[(u'TGZ 压缩包', '*.tgz;*.tar.gz'),
+                       (u'TGZ 文件', '*.tgz'),
+                       (u'所有文件', '*.*')])
         if not p:
-            p = filedialog.askopenfilename(
-                title=u'选择 Genesis Job .tgz 文件',
-                filetypes=[(u'TGZ 文件', '*.tgz'), (u'所有', '*.*')])
+            # 文件选择取消 → 可以选择目录
+            p = filedialog.askdirectory(title=u'或选择 Genesis Job 目录')
         if p:
             self.var_job.set(p)
 
