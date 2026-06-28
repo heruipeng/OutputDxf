@@ -1,42 +1,47 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 =============================================================================
  main_dxf_export.py  —  GENESIS 2000 自动导出 DXF 工具
  鹏程工作室 出品
 =============================================================================
- 运行环境 : Python 3.x  |  纯 Tkinter GUI  |  无第三方依赖
- 兼容    : Windows / Linux
+ 运行环境 : Python 2.7 / 3.x  |  纯 Tkinter GUI  |  无第三方依赖
+ 兼容    : Windows Genesis / Linux
  调用方式 : python main_dxf_export.py
 =============================================================================
- 模块划分:
-   1. DxfWriter     — 纯文本 DXF 写入模块
-   2. JobAdapter    — 数据接口适配层
-   3. DataProcessor — 图形数据预处理 (过滤/去重/优化)
-   4. DxfExportApp  — Tkinter GUI 主界面
-=============================================================================
 """
+
+from __future__ import print_function, unicode_literals, division
 
 import sys
 import os
 
-# ---- Tkinter 检测 ---------------------------------------------------------
-# Python 3 for Windows: tkinter 可能未安装, 提前检查给出友好提示
+# ---- Tkinter 检测 (Python 2/3 兼容) -------------------------------------
+TK_IMPORT_ERROR = None
 try:
     import tkinter as tk
     from tkinter import filedialog, messagebox
     from tkinter import font as tkFont
     from tkinter import scrolledtext
-except ImportError as e:
-    sys.stderr.write('\n[OutputDxf] tkinter 未安装, 无法启动 GUI 界面。\n')
+except ImportError:
+    try:
+        import Tkinter as tk
+        import tkFileDialog as filedialog
+        import tkMessageBox as messagebox
+        import tkFont
+        import ScrolledText as scrolledtext
+    except ImportError as e:
+        TK_IMPORT_ERROR = e
+
+if TK_IMPORT_ERROR:
+    sys.stderr.write('\n[OutputDxf] tkinter/Tkinter 未安装, 无法启动 GUI。\n')
     sys.stderr.write('  修复方法:\n')
     if sys.platform == 'win32':
-        sys.stderr.write('  1. 重新安装 Python 3, 勾选 tcl/tk and IDLE 选项\n')
-        sys.stderr.write('  2. 或用 Genesis 自带的 Python: python2 main_dxf_export.py\n')
+        sys.stderr.write('  1. 重装 Python 3, 勾选 tcl/tk and IDLE\n')
+        sys.stderr.write('  2. Genesis 自带 Python 2 已含 Tkinter, 确保环境正确\n')
     else:
-        sys.stderr.write('  Debian/Ubuntu: sudo apt install python3-tk\n')
-        sys.stderr.write('  CentOS/RHEL:   sudo yum install python3-tkinter\n')
-    sys.stderr.write('  错误详情: %s\n\n' % e)
+        sys.stderr.write('  sudo apt install python3-tk\n')
+    sys.stderr.write('  详情: %s\n\n' % TK_IMPORT_ERROR)
     sys.exit(1)
 
 import re
@@ -48,8 +53,13 @@ import tempfile
 import shutil
 import fnmatch
 import json
-import configparser
 from collections import OrderedDict
+
+# configparser: Python 2 叫 ConfigParser
+try:
+    import configparser
+except ImportError:
+    import ConfigParser as configparser
 
 # ==========================================================================
 # 全局常量
@@ -1307,20 +1317,25 @@ class DxfExportApp(object):
 
     @staticmethod
     def _kill_xmanager():
-        """检查 XMANAGER.exe 进程, 如果运行则 kill (批处理导出不需要 GUI)"""
+        """检查 XMANAGER.exe 进程, 如果运行则 kill (批处理导出不需要 GUI)
+        Python 2/3 兼容, 仅 Windows 有效"""
         import subprocess
         try:
+            if sys.platform != 'win32':
+                return
             # 查找 XMANAGER.exe 进程
-            result = subprocess.check_output(
+            proc = subprocess.Popen(
                 ['tasklist', '/fi', 'IMAGENAME eq XMANAGER.exe', '/fo', 'csv'],
-                shell=True, timeout=10
-            ).decode('gbk', errors='replace')
-            if 'XMANAGER.exe' in result:
-                subprocess.call(['taskkill', '/f', '/im', 'XMANAGER.exe'],
-                                shell=True, timeout=10)
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            out, _ = proc.communicate(timeout=10) if sys.version_info[0] >= 3 else proc.communicate()
+            if isinstance(out, bytes):
+                out = out.decode('mbcs', errors='replace')
+            if 'XMANAGER.exe' in out:
+                # 强制关闭
+                subprocess.call(['taskkill', '/f', '/im', 'XMANAGER.exe'], shell=True)
                 print('[OutputDxf] XMANAGER.exe 已关闭')
         except Exception:
-            pass  # 非 Windows 或无权限时静默跳过
+            pass  # 无权限时静默跳过
 
 
 # ==========================================================================
