@@ -3,7 +3,6 @@
 """
 =============================================================================
  main_dxf_export.py  —  GENESIS 2000 自动导出 DXF 工具
- 鹏程工作室 出品
 =============================================================================
  运行环境 : Python 2.7 / 3.x  |  纯 Tkinter GUI  |  无第三方依赖
  兼容    : Windows Genesis / Linux
@@ -13,7 +12,6 @@
 
 from __future__ import print_function, unicode_literals, division
 
-import logging
 import sys
 import os
 import subprocess
@@ -67,7 +65,6 @@ except ImportError:
 # 全局常量
 # ==========================================================================
 VERSION = '2.0.0'
-BRAND   = u'鹏程工作室 出品'
 
 # Genesis 常见图层名称映射
 LAYER_TYPE_MAP = {
@@ -875,9 +872,6 @@ class DxfExportApp(object):
         tk.Label(hdr, text=u'  OutputDxf',
                  font=self.FONT_TITLE, bg=self.ACCENT, fg='white').pack(
             side=tk.LEFT, padx=10, pady=6)
-        tk.Label(hdr, text=u'Genesis DXF 自动导出 ' + BRAND,
-                 font=self.FONT_SMALL, bg=self.ACCENT, fg='#AED6F1').pack(
-            side=tk.RIGHT, padx=10, pady=12)
 
     # -- 卡片基类 -----------------------------------------------------------
 
@@ -1333,146 +1327,55 @@ class DxfExportApp(object):
         self._load_job_info(job_path,job,step,','.join(selected_layers),output_dir,unit,dxf_mode)
 
     def _load_job_info(self,tgz_path,job,step,layer,output_dir,unit,dxf_mode):
+        """启动 Genesis 批处理 — 写临时 csh 脚本并调用 get.exe"""
         self._log(','.join([tgz_path,job,step,layer,output_dir,unit,dxf_mode]))
-        GENESIS_GET = os.getenv('GENESIS_DIR','C:/genesis')
-        Xmanager139 = GENESIS_GET + '/Xmanager139/XMANAGER.exe'
-        run_scripts = os.getcwd() + '\\run_genesis_scripts_working.exe'
-        self._kill_xmanager()
-        # scripts_param = '%s %s %s %s %s %s %s %s' % (
-        #     run_scripts, tgz_path, job, step, layer, output_dir, unit, dxf_mode)
-        scripts_param = [tgz_path, job, step, layer, output_dir, unit, dxf_mode]
-        if os.path.isfile(Xmanager139):
-            subprocess.Popen(Xmanager139, shell=True,stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        # os.system(scripts_param)
-
-
-        # parts = [run_scripts, tgz_path, job, step, layer, output_dir, unit, dxf_mode]
-        # # 每一项包裹双引号，空格路径不会拆分
-        # scripts_param = " ".join(f'"{item}"' for item in parts)
-        #
-        # print("执行命令：", scripts_param)
-        # os.system(scripts_param)
-
+        genesis_dir = os.getenv('GENESIS_DIR','C:/genesis')
+        genesis_edir = genesis_dir + '/e97/get'
+        xmanager_exe = genesis_dir + '/Xmanager139/XMANAGER.exe'
+        project_dir = os.path.dirname(os.path.abspath(__file__))
+        guid_script = os.path.join(project_dir, 'import_tgz.csh').replace('\\', '/')
         run_pid = os.getpid()
-        GENESIS_DIR = "C:/genesis"
-        GENESIS_EDIR = "C:/genesis/e97/get"
-        # --定义运行genesis的程序
-        RUN_GET_FILE = 'C:/tmp/run_get_%s.csh' % run_pid
-        # --定义Genesis执行另一程序的文件
-        RUN_PY_FILE = 'C:/tmp/run_main_py_%s.csh' % run_pid
+        run_get_file = 'C:/tmp/run_get_%s.csh' % run_pid
 
-        # --主程式
-        def MAIN(param):
-            # 优先从配置获取，缺失时回退到当前文件默认值
-            genesis_edir = GENESIS_EDIR
-            os.chdir(genesis_edir)
-            # --封装启动文件
-            write_run_get_tmp(param)
-            # --封装启动后执行的程序
-            # write_run_script_tmp(param, '')
-            # --台头提醒
-            logging.info('    **************************')
-            logging.info('    * 即将启动Genesis软件...  ')
-            logging.info('    **************************\n\n')
+        self._kill_xmanager()
 
-            # 从配置获取临时启动脚本路径模板，缺失时回退到默认值
-            run_get_file = RUN_GET_FILE
-            # --执行主程序
-            RUN_CSH(run_get_file)
+        # 启动 XMANAGER
+        if os.path.isfile(xmanager_exe):
+            subprocess.Popen(xmanager_exe, shell=True,
+                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            print('[OutputDxf] XMANAGER 已启动')
 
-            # --删除临时文件
-            # cleanup_temp_files()
+        # 检查 Genesis 目录
+        if not os.path.isdir(genesis_edir):
+            print('[OutputDxf] Genesis 目录异常: %s' % genesis_edir)
+            messagebox.showerror(u'错误', u'Genesis 安装目录不存在:\n%s' % genesis_edir)
+            return
+        if not os.path.isfile(os.path.join(genesis_edir, 'get.exe')):
+            print('[OutputDxf] get.exe 不存在')
+            messagebox.showerror(u'错误', u'get.exe 未找到')
             return
 
-        # --无界面执行CSH程序
-        def RUN_CSH(csh_file):
-            # --调用系统命令执行
-            shell_id = os.system('csh %s' % csh_file)
-            logging.info(f"ID: {shell_id}, run_pid: {run_pid}")
-            return
+        # 写入 csh 启动脚本
+        params = [tgz_path, job, step, layer, output_dir, unit, dxf_mode]
+        csh_content = (
+            '#!/c:/bin/csh\n'
+            'setenv GENESIS_DIR %s\n'
+            'cd %s\n'
+            './get.exe -x -s%s %s\n'
+            'exit 0\n'
+        ) % (genesis_dir, genesis_edir, guid_script, ' '.join(params))
 
-        # --封装启动Genesis的csh文件 (C:/tmp/ruN_gEt.csh)
-        def write_run_get_tmp(param):
+        with open(run_get_file, 'w') as f:
+            f.write(csh_content + '\n')
+        print('[OutputDxf] 启动脚本: %s' % run_get_file)
 
-            # 优先取配置，缺失时使用本文件中的默认常量
-            genesis_dir = GENESIS_DIR
-            genesis_edir = GENESIS_EDIR
-            run_py_file = RUN_PY_FILE
-
-            PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
-            guid_script_path = (os.path.join(PROJECT_DIR, "import_tgz.csh")
-                                .replace("\\", "/"))
-
-            get_txt = """\
-            #!c:/bin/csh
-
-            setenv GENESIS_DIR {0}
-            cd {1}
-
-            # 启动Genesis并调用指定程序
-            ./get.exe -x -s{2} {3}
-
-            exit 0
-            """.format(genesis_dir, genesis_edir, guid_script_path, ' '.join(param))
-            run_get_file = RUN_GET_FILE
-            WRITE_FILE(get_txt, run_get_file)
-            # 判断get.exe文件是否存在
-            if not os.path.isfile(os.path.join(genesis_edir, 'get.exe')):
-                logging.error("get.exe文件不存在,exit...")
-                return
-            return
-
-        # --封装run的程序文件  (runpyFile)
-        def write_run_script_tmp(param, script_args=""):
-            # 定义引导程序路径
-            PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
-            guid_script_path = (os.path.join(PROJECT_DIR, "import_tgz.csh")
-                                .replace("\\", "/"))
-
-            genesis_dir = GENESIS_DIR
-            genesis_edir = GENESIS_EDIR
-
-            scripts_txt = """\
-            #!c:/bin/csh
-
-            # 设定环境变量
-            setenv GENESIS_DIR {0}
-            setenv GENESIS_EDIR {1}
-
-            # 执行Python脚本
-            csh "{2}" {3}
-
-            exit 0
-            """.format(genesis_dir, genesis_edir, guid_script_path, ' '.join(param))
-            logging.info(f"引导程序路径: {guid_script_path}")
-            run_py_file = RUN_PY_FILE
-            WRITE_FILE(scripts_txt, run_py_file)
-            return
-
-        def WRITE_FILE(text, tmp_f):
-            # print(text)
-            f = open(tmp_f, 'w')
-            f.write(text + '\n')
-            f.close()
-            return
-
-        def cleanup_temp_files():
-            """清理临时文件"""
-            run_get_file = RUN_GET_FILE
-            run_py_file = RUN_PY_FILE
-            temp_files = [run_get_file, run_py_file]
-            for temp_file in temp_files:
-                if os.path.isfile(temp_file):
-                    try:
-                        os.unlink(temp_file)
-                        logging.info(f"已删除临时文件: {temp_file}")
-                    except Exception as e:
-                        logging.error(f"删除临时文件失败 {temp_file}: {e}")
-
-        print("执行命令：", scripts_param)
-        MAIN(scripts_param)
-        messagebox.showwarning(u'提示', u'转换完成')
+        # 执行 csh
+        os.chdir(genesis_edir)
+        print('[OutputDxf] 启动 Genesis ...')
+        os.system('csh %s' % run_get_file)
+        print('[OutputDxf] Genesis 已退出')
+        messagebox.showinfo(u'提示', u'转换完成')
 
     @staticmethod
     def _kill_xmanager():
@@ -1537,7 +1440,6 @@ def run_genesis():
 def _batch_export():
     """批量命令行导出模式 (待后续添加导出逻辑)"""
     print('OutputDxf v%s - DXF Export' % VERSION)
-    print(BRAND)
     print('批量导出逻辑待后续添加 (在 get_layer_data() 中对接 Genesis API)。')
     print('请使用 GUI 模式: python main_dxf_export.py')
 
