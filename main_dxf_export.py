@@ -19,6 +19,26 @@
 
 import sys
 import os
+
+# ---- Tkinter 检测 ---------------------------------------------------------
+# Python 3 for Windows: tkinter 可能未安装, 提前检查给出友好提示
+try:
+    import tkinter as tk
+    from tkinter import filedialog, messagebox
+    from tkinter import font as tkFont
+    from tkinter import scrolledtext
+except ImportError as e:
+    sys.stderr.write('\n[OutputDxf] tkinter 未安装, 无法启动 GUI 界面。\n')
+    sys.stderr.write('  修复方法:\n')
+    if sys.platform == 'win32':
+        sys.stderr.write('  1. 重新安装 Python 3, 勾选 tcl/tk and IDLE 选项\n')
+        sys.stderr.write('  2. 或用 Genesis 自带的 Python: python2 main_dxf_export.py\n')
+    else:
+        sys.stderr.write('  Debian/Ubuntu: sudo apt install python3-tk\n')
+        sys.stderr.write('  CentOS/RHEL:   sudo yum install python3-tkinter\n')
+    sys.stderr.write('  错误详情: %s\n\n' % e)
+    sys.exit(1)
+
 import re
 import math
 import time
@@ -30,11 +50,6 @@ import fnmatch
 import json
 import configparser
 from collections import OrderedDict
-
-import tkinter as tk
-from tkinter import filedialog, messagebox
-from tkinter import font as tkFont
-from tkinter import scrolledtext
 
 # ==========================================================================
 # 全局常量
