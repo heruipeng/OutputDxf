@@ -975,8 +975,8 @@ class DxfExportApp(object):
         genesis_dir = os.getenv('GENESIS_DIR','C:/genesis')
         genesis_edir = genesis_dir + '/e97/get'
         xmanager_exe = genesis_dir + '/Xmanager139/XMANAGER.exe'
-        project_dir = os.path.dirname(os.path.abspath(__file__))
-        guid_script = os.path.join(project_dir, 'import_tgz.csh').replace('\\', '/')
+        # project_dir = os.path.dirname(os.path.abspath(__file__))
+        guid_script = os.path.join(os.getcwd(), 'import_tgz.csh').replace('\\', '/')
         run_pid = os.getpid()
         run_get_file = 'C:/tmp/run_get_%s.csh' % run_pid
 
@@ -1031,7 +1031,7 @@ class DxfExportApp(object):
             out, _ = p.communicate()
             if isinstance(out, bytes):
                 out = out.decode('gbk', errors='replace')
-            print('[OutputDxf] tasklist 输出 (前200字):\n' + out[:200])
+            # print('[OutputDxf] tasklist 输出 (前200字):\n' + out[:200])
 
             killed = False
             for line in out.split('\n'):
