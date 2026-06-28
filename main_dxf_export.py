@@ -799,7 +799,7 @@ class DataProcessor(object):
 class DxfExportApp(object):
     TITLE  = 'OutputDxf - Genesis DXF Export v' + VERSION
     WIDTH  = 600
-    HEIGHT = 580
+    HEIGHT = 620
 
     # 配色
     BG        = '#EAECEE'
@@ -908,7 +908,10 @@ class DxfExportApp(object):
         # 图层选择卡片
         self._card_layer()
 
-        # 设置卡片 (单位/输出路径)
+        # DXF 输出路径卡片
+        self._card_output_path()
+
+        # 设置卡片 (单位/版本/选项)
         self._card_settings()
 
         # 日志区域
@@ -1016,6 +1019,25 @@ class DxfExportApp(object):
 
     # -- 设置卡片 -----------------------------------------------------------
 
+    # -- 输出路径卡片 (独立) ----------------------------------------------
+
+    def _card_output_path(self):
+        inner = self._card(self.main_frame, u'DXF 输出路径')
+        row = tk.Frame(inner, bg=self.CARD_BG)
+        row.pack(fill=tk.X)
+        self.var_output = tk.StringVar()
+        tk.Entry(row, textvariable=self.var_output,
+                 font=self.FONT_MONO, relief=tk.FLAT,
+                 bg=self.LIGHT_BG, bd=1).pack(side=tk.LEFT, fill=tk.X,
+                                              expand=1, ipady=3)
+        self._btn(row, u'浏览', self._on_output_browse,
+                  bg=self.ACCENT, width=5).pack(side=tk.RIGHT, padx=(4, 0))
+        tk.Label(inner, text=u' 导出文件自动携带 Job名+Step名+图层名',
+                 font=self.FONT_SMALL, bg=self.CARD_BG, fg=self.GRAY).pack(
+            anchor=tk.W, pady=(3, 0))
+
+    # -- 设置卡片 -----------------------------------------------------------
+
     def _card_settings(self):
         inner = self._card(self.main_frame, u'导出设置')
 
@@ -1030,19 +1052,6 @@ class DxfExportApp(object):
                            bg=self.CARD_BG, font=self.FONT_NORMAL,
                            selectcolor=self.CARD_BG).pack(
                 side=tk.LEFT, padx=(2, 8))
-
-        # 输出路径
-        of_ = tk.Frame(inner, bg=self.CARD_BG)
-        of_.pack(fill=tk.X, pady=(2, 0))
-        tk.Label(of_, text=u'输出:', font=self.FONT_NORMAL,
-                 bg=self.CARD_BG, fg=self.FG).pack(side=tk.LEFT)
-        self.var_output = tk.StringVar()
-        tk.Entry(of_, textvariable=self.var_output,
-                 font=self.FONT_MONO, relief=tk.FLAT,
-                 bg=self.LIGHT_BG, bd=1).pack(side=tk.LEFT, fill=tk.X,
-                                              expand=1, ipady=2, padx=4)
-        self._btn(of_, u'...', self._on_output_browse, width=3).pack(
-            side=tk.RIGHT)
 
         # DXF 版本 + 选项
         optf = tk.Frame(inner, bg=self.CARD_BG)
