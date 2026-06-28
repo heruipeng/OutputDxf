@@ -712,7 +712,11 @@ class DxfExportApp(object):
         print('[OutputDxf] 已找到配置文件, 开始解析')
         try:
             parser = configparser.ConfigParser()
-            parser.read(cfg_path)
+            # 强制 UTF-8 读取, 避免 Windows gbk 编码报错
+            if sys.version_info[0] >= 3:
+                parser.read(cfg_path, encoding='utf-8')
+            else:
+                parser.read(cfg_path)
             sections = parser.sections()
             print('[OutputDxf] 解析到节: ' + str(sections))
             for section in sections:
