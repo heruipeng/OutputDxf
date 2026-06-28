@@ -1239,25 +1239,8 @@ class DxfExportApp(object):
     # -- 导出主流程 ---------------------------------------------------------
 
     def _on_export(self):
-        """开始导出"""
-        import threading
-
-        # 禁用按钮
-        self.start_btn.config(state=tk.DISABLED, text=u'  导出中...  ')
-
-        self.root.update_idletasks()
-        try:
-            self._do_export()
-        except Exception as e:
-            self._log(u'!!! 导出异常: ' + str(e))
-            traceback.print_exc()
-            messagebox.showerror(u'导出失败', str(e))
-        finally:
-            self.start_btn.config(state=tk.NORMAL, text=u'  ▶ 开始导出  ')
-
-    def _do_export(self):
-        """执行导出流程"""
-        # -- 1. 验证输入 --
+        """导出按钮 — 校验参数后占位提示 (后续自行添加导出逻辑)"""
+        # 校验输入
         job_path = self.var_job.get().strip()
         step = self.var_step.get().strip()
         output_dir = self.var_output.get().strip()
@@ -1265,195 +1248,38 @@ class DxfExportApp(object):
         split = bool(self.var_split.get())
 
         if not job_path:
-            raise Exception(u'请先加载 Job')
+            messagebox.showwarning(u'提示', u'请先加载 Job')
+            return
         if not step or step.startswith(u'('):
-            raise Exception(u'请选择 Step')
+            messagebox.showwarning(u'提示', u'请选择 Step')
+            return
         if not output_dir:
-            raise Exception(u'请选择输出目录')
+            messagebox.showwarning(u'提示', u'请选择输出目录')
+            return
 
         selected_layers = [l for l, v in self.layer_vars.items() if v.get()]
         if not selected_layers:
-            raise Exception(u'请至少选择一个图层')
+            messagebox.showwarning(u'提示', u'请至少选择一个图层')
+            return
 
-        job_name = self.genesis.get_job_name()
-        self._log(u'========== 开始导出 ==========')
-        self._log(u'Job: %s | Step: %s | 单位: %s' % (job_name, step, unit))
-        self._log(u'选中图层: %s' % (', '.join(selected_layers)))
+        # 参数汇总
+        self._log(u'========== 导出参数确认 ==========')
+        self._log(u'Job:     %s' % job_path)
+        self._log(u'Step:    %s' % step)
+        self._log(u'单位:    %s' % ('毫米' if unit == 'mm' else '英寸'))
+        self._log(u'输出:    %s' % output_dir)
+        self._log(u'模式:    %s' % (u'每层单独文件' if split else u'合并单文件'))
+        self._log(u'图层:    %s' % (', '.join(selected_layers)))
+        self._log(u'=====================================')
 
-        # 确保输出目录存在
-        if not os.path.isdir(output_dir):
-            os.makedirs(output_dir)
+        messagebox.showinfo(u'准备就绪',
+            u'参数校验通过!\n\n'
+            u'选中 %d 个图层\n'
+            u'输出目录: %s\n\n'
+            u'导出逻辑待后续添加 (在 get_layer_data() 中对接 Genesis API)。' %
+            (len(selected_layers), output_dir))
 
-        # -- 2. 逐层提取数据 并 生成 DXF --
-        dp = DataProcessor(unit=unit)
-        total_layers = len(selected_layers)
-        exported_files = []
-
-        for idx, layer_name in enumerate(selected_layers):
-            self._log(u'处理图层 [%d/%d]: %s' %
-                      (idx+1, total_layers, layer_name))
-
-            # 提取 Genesis 图形数据
-            layer_data = self.genesis.get_layer_data(step, layer_name)
-            layer_type = self.genesis.classify_layer(layer_name)
-
-            # 单位转换: Genesis 内部 mil -> 目标单位
-            layer_data = dp.convert_layer_data(layer_data, 'mil', unit)
-
-            # 数据预处理
-            layer_data['lines'] = dp.filter_short_lines(
-                layer_data['lines'])
-            layer_data['lines'] = dp.deduplicate_lines(
-                layer_data['lines'])
-            layer_data['circles'] = dp.filter_small_circles(
-                layer_data['circles'])
-            layer_data['circles'] = dp.deduplicate_circles(
-                layer_data['circles'])
-
-            # 统计图形数量
-            total_entities = (len(layer_data['lines']) +
-                              len(layer_data['circles']) +
-                              len(layer_data['pads']) +
-                              len(layer_data['arcs']) +
-                              len(layer_data['surfaces']) +
-                              len(layer_data['drills']))
-
-            self._log(u'  -> 图层类型: %s | 图形数: %d (线%d/圆%d/弧%d/面%d/钻%d)' %
-                      (layer_type, total_entities,
-                       len(layer_data['lines']),
-                       len(layer_data['circles']),
-                       len(layer_data['arcs']),
-                       len(layer_data['surfaces']),
-                       len(layer_data['drills'])))
-
-            if total_entities == 0:
-                self._log(u'  -> 图层无数据, 跳过')
-                continue
-
-            # 确定 DXF 文件名
-            if split:
-                dxf_name = '%s_%s_%s.dxf' % (job_name, step, layer_name)
-                dxf_path = os.path.join(output_dir, dxf_name)
-                self._write_single_layer_dxf(dxf_path, layer_data,
-                                             layer_type, unit)
-                exported_files.append(dxf_path)
-                self._log(u'  -> 输出: %s' % dxf_name)
-            else:
-                # 合并模式: 收集所有层数据最后统一写入
-                if '_merged_data' not in dir(self):
-                    self._merged_layers = []
-                    self._merged_output_dir = output_dir
-
-                self._merged_layers.append({
-                    'name': layer_name,
-                    'type': layer_type,
-                    'data': layer_data,
-                })
-
-            # 更新进度
-            pct = (idx + 1) * 100 // total_layers
-            self._update_progress(pct)
-
-        # -- 3. 合并模式: 写入单文件多图层 DXF --
-        if not split and hasattr(self, '_merged_layers') and self._merged_layers:
-            dxf_name = '%s_%s.dxf' % (job_name, step)
-            dxf_path = os.path.join(output_dir, dxf_name)
-            self._write_merged_dxf(dxf_path, self._merged_layers, unit)
-            exported_files.append(dxf_path)
-            self._log(u'合并输出: %s' % dxf_name)
-
-        # -- 4. 完成 --
-        self._update_progress(100)
-        self.status_label.config(text=u'导出完成', fg=self.GREEN)
-        self._log(u'========== 导出完成 ==========')
-        self._log(u'共导出 %d 个文件' % len(exported_files))
-
-        msg = u'导出完成!\n\n共 %d 个 DXF 文件:\n' % len(exported_files)
-        for f in exported_files:
-            msg += u'  • ' + os.path.basename(f) + u'\n'
-        msg += u'\n输出目录:\n' + output_dir
-
-        messagebox.showinfo(u'导出完成', msg)
-
-    def _write_single_layer_dxf(self, dxf_path, layer_data, layer_type, unit):
-        """单图层 DXF 写入"""
-        dxf = DxfWriter(dxf_path, unit=unit)
-
-        # 确定目标 DXF 图层名
-        dxf_layer = layer_type
-
-        # 写入线段
-        for x1, y1, x2, y2 in layer_data.get('lines', []):
-            dxf.add_line(x1, y1, x2, y2, layer=dxf_layer)
-
-        # 写入圆弧
-        for cx, cy, r, sa, ea in layer_data.get('arcs', []):
-            dxf.add_arc(cx, cy, r, sa, ea, layer=dxf_layer)
-
-        # 写入圆 (焊盘)
-        for cx, cy, r in layer_data.get('circles', []):
-            dxf.add_circle(cx, cy, r, layer=dxf_layer)
-
-        # 写入焊盘 (矩形焊盘 -> 多段线)
-        for cx, cy, w, h, rot in layer_data.get('pads', []):
-            hw, hh = w / 2.0, h / 2.0
-            points = [
-                (cx - hw, cy - hh),
-                (cx + hw, cy - hh),
-                (cx + hw, cy + hh),
-                (cx - hw, cy + hh),
-            ]
-            # 简单旋转 (仅 0/90/180/270)
-            if abs(rot - 90) < 0.01 or abs(rot - 270) < 0.01:
-                points = [
-                    (cx - hh, cy - hw),
-                    (cx + hh, cy - hw),
-                    (cx + hh, cy + hw),
-                    (cx - hh, cy + hw),
-                ]
-            dxf.add_polyline(points, closed=True, layer=dxf_layer)
-
-        # 写入多边形表面 (轮廓)
-        for pts in layer_data.get('surfaces', []):
-            if len(pts) >= 3:
-                dxf.add_polyline(pts, closed=True, layer=dxf_layer)
-
-        # 写入钻孔
-        for dx, dy, dia in layer_data.get('drills', []):
-            dxf.add_circle(dx, dy, dia / 2.0, layer='DRILL')
-            dxf.add_point(dx, dy, layer='DRILL')
-
-        dxf.save()
-
-    def _write_merged_dxf(self, dxf_path, merged_layers, unit):
-        """多图层合并 DXF 写入"""
-        dxf = DxfWriter(dxf_path, unit=unit)
-
-        for layer_info in merged_layers:
-            lname = layer_info['name']
-            ltype = layer_info['type']
-            ldata = layer_info['data']
-            dxf_layer = ltype + '_' + lname if lname != ltype else ltype
-
-            for x1, y1, x2, y2 in ldata.get('lines', []):
-                dxf.add_line(x1, y1, x2, y2, layer=dxf_layer)
-            for cx, cy, r, sa, ea in ldata.get('arcs', []):
-                dxf.add_arc(cx, cy, r, sa, ea, layer=dxf_layer)
-            for cx, cy, r in ldata.get('circles', []):
-                dxf.add_circle(cx, cy, r, layer=dxf_layer)
-            for cx, cy, w, h, rot in ldata.get('pads', []):
-                hw, hh = w / 2.0, h / 2.0
-                pts = [(cx - hw, cy - hh), (cx + hw, cy - hh),
-                       (cx + hw, cy + hh), (cx - hw, cy + hh)]
-                dxf.add_polyline(pts, closed=True, layer=dxf_layer)
-            for pts in ldata.get('surfaces', []):
-                if len(pts) >= 3:
-                    dxf.add_polyline(pts, closed=True, layer=dxf_layer)
-            for dx, dy, dia in ldata.get('drills', []):
-                dxf.add_circle(dx, dy, dia / 2.0, layer='DRILL')
-                dxf.add_point(dx, dy, layer='DRILL')
-
-        dxf.save()
+        self.status_label.config(text=u'就绪 (导出逻辑待添加)', fg=self.GRAY)
 
 
 # ==========================================================================
@@ -1478,72 +1304,11 @@ def run_genesis():
 
 
 def _batch_export():
-    """批量命令行导出模式"""
-    print('OutputDxf v%s - Genesis Batch Export' % VERSION)
+    """批量命令行导出模式 (待后续添加导出逻辑)"""
+    print('OutputDxf v%s - DXF Export' % VERSION)
     print(BRAND)
-
-    args = sys.argv[1:]
-    job_path = ''
-    step = ''
-    layers = []
-    output_dir = ''
-    unit = 'mm'
-
-    i = 0
-    while i < len(args):
-        if args[i] in ('--job', '-j') and i+1 < len(args):
-            job_path = args[i+1]; i += 2
-        elif args[i] in ('--step', '-s') and i+1 < len(args):
-            step = args[i+1]; i += 2
-        elif args[i] in ('--layers', '-l') and i+1 < len(args):
-            layers = args[i+1].split(','); i += 2
-        elif args[i] in ('--output', '-o') and i+1 < len(args):
-            output_dir = args[i+1]; i += 2
-        elif args[i] in ('--unit', '-u') and i+1 < len(args):
-            unit = args[i+1]; i += 2
-        elif args[i] in ('--genesis', '--batch'):
-            i += 1
-        else:
-            i += 1
-
-    if not job_path or not output_dir:
-        print('用法: main_dxf_export.py --genesis -j <job> -s <step> '
-              '-l <layer1,layer2> -o <output> [-u mm|inch]')
-        return
-
-    try:
-        g = GenesisAPI()
-        g.open_job(job_path)
-
-        if not step:
-            steps = g.get_steps()
-            if steps:
-                step = steps[0]
-
-        if not layers:
-            layers = g.get_layers(step)
-
-        dp = DataProcessor(unit=unit)
-        job_name = g.get_job_name()
-        dxf_name = '%s_%s.dxf' % (job_name, step)
-        dxf_path = os.path.join(output_dir, dxf_name)
-
-        dxf = DxfWriter(dxf_path, unit=unit)
-        for layer_name in layers:
-            ldata = g.get_layer_data(step, layer_name)
-            ltype = g.classify_layer(layer_name)
-            ldata = dp.convert_layer_data(ldata, 'mil', unit)
-
-            for x1, y1, x2, y2 in ldata.get('lines', []):
-                dxf.add_line(x1, y1, x2, y2, layer=ltype)
-            for cx, cy, r in ldata.get('circles', []):
-                dxf.add_circle(cx, cy, r, layer=ltype)
-
-        dxf.save()
-        print('Done: ' + dxf_path)
-    except Exception as e:
-        print('Error: ' + str(e))
-        sys.exit(1)
+    print('批量导出逻辑待后续添加 (在 get_layer_data() 中对接 Genesis API)。')
+    print('请使用 GUI 模式: python main_dxf_export.py')
 
 
 if __name__ == '__main__':
