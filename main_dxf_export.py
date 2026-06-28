@@ -704,21 +704,25 @@ class DxfExportApp(object):
         """从配置文件加载参数"""
         cfg = {}
         cfg_path = DxfExportApp._cfg_path()
-        # 打印搜索路径, 方便排查配置加载问题
-        print('[OutputDxf] 配置文件路径: ' + cfg_path)
+        print('[OutputDxf] _load_cfg 搜索: ' + cfg_path)
+        print('[OutputDxf] 文件存在: ' + str(os.path.isfile(cfg_path)))
         if not os.path.isfile(cfg_path):
-            print('[OutputDxf] ⚠ 配置文件未找到, 使用默认设置')
+            print('[OutputDxf] 配置文件未找到, 使用默认设置')
             return cfg
-        print('[OutputDxf] ✓ 已找到配置文件')
+        print('[OutputDxf] 已找到配置文件, 开始解析')
         try:
             parser = configparser.ConfigParser()
             parser.read(cfg_path)
-            for section in parser.sections():
+            sections = parser.sections()
+            print('[OutputDxf] 解析到节: ' + str(sections))
+            for section in sections:
                 cfg[section] = {}
                 for k, v in parser.items(section):
                     cfg[section][k] = v
+                    print('[OutputDxf]   [%s] %s = %s' % (section, k, v))
         except Exception:
             pass
+        print('[OutputDxf] cfg keys: ' + str(list(cfg.keys())))
         return cfg
 
     def _apply_cfg_defaults(self):
@@ -726,12 +730,13 @@ class DxfExportApp(object):
         if not self.cfg:
             return  # 未找到配置文件, 静默跳过
 
-        self._log(u'已加载配置: ' + self._cfg_path())
+        print('[OutputDxf] 已加载配置: ' + self._cfg_path())
 
         if 'paths' in self.cfg:
             p = self.cfg['paths'].get('output_path', '').strip()
             if p:
                 self.var_output.set(p)
+                print('[OutputDxf] 输出路径已设置: ' + p)
             self.genesis_dir = self.cfg['paths'].get('genesis_dir', '').strip()
             if os.path.isdir(self.genesis_dir) is False:
                 self._log(u'genesis安装路径异常:%s' % self.genesis_dir)
