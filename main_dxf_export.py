@@ -858,6 +858,13 @@ class DxfExportApp(object):
 
     def _card_layer(self):
         inner = self._card(self.main_frame, u'图层选择')
+
+        # 当前 Step 信息条
+        self.layer_info = tk.Label(inner, text=u'  (未选择 Step)',
+                                   font=self.FONT_SMALL, bg=self.CARD_BG,
+                                   fg=self.GRAY, anchor=tk.W)
+        self.layer_info.pack(fill=tk.X, padx=2, pady=(0, 4))
+
         # 图层多选: Canvas + Checkbutton 列表
         self.layer_canvas = tk.Canvas(inner, bg=self.CARD_BG,
                                       height=120, highlightthickness=0)
@@ -1063,6 +1070,11 @@ class DxfExportApp(object):
         layers = self.job.scan_layers(step)
         self._log(u'Step [%s] 发现 %d 个图层' % (step, len(layers)))
 
+        # 更新图层信息条
+        self.layer_info.config(
+            text=u'  Step: %s  |  共 %d 层  |  已选: %d' % (step, len(layers), len(layers)),
+            fg=self.ACCENT)
+
         # 清空旧的
         for w in self.layer_frame.winfo_children():
             w.destroy()
@@ -1071,6 +1083,7 @@ class DxfExportApp(object):
         # 重建 checkbutton
         for lname in layers:
             var = tk.IntVar(value=1)
+            var.trace('w', lambda *_a: self._update_layer_count())
             self.layer_vars[lname] = var
             ltype = self.job.classify_layer(lname)
             color = DXF_LAYER_COLORS.get(ltype, 7)
@@ -1089,13 +1102,23 @@ class DxfExportApp(object):
         self.layer_canvas.configure(
             scrollregion=self.layer_canvas.bbox('all'))
 
+    def _update_layer_count(self):
+        """更新图层选中计数"""
+        total = len(self.layer_vars)
+        selected = sum(1 for v in self.layer_vars.values() if v.get())
+        self.layer_info.config(
+            text=u'  Step: %s  |  共 %d 层  |  已选: %d' % (
+                self.var_step.get().strip(), total, selected))
+
     def _on_select_all(self):
         for v in self.layer_vars.values():
             v.set(1)
+        self._update_layer_count()
 
     def _on_select_none(self):
         for v in self.layer_vars.values():
             v.set(0)
+        self._update_layer_count()
 
     def _on_output_browse(self):
         p = filedialog.askdirectory(title=u'选择 DXF 输出文件夹')
