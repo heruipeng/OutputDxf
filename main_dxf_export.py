@@ -679,11 +679,68 @@ class DxfExportApp(object):
         self.job = JobAdapter()
         self.dp       = DataProcessor(unit='mm')
         self.worker   = None  # 转换工作状态
+        self.cfg = self._load_cfg()
 
         self._setup_root()
         self._setup_fonts()
         self._build_ui()
+
+        # 加载配置
+        self._apply_cfg_defaults()
+
         self.root.mainloop()
+
+    # -- 配置文件 -----------------------------------------------------------
+
+    @staticmethod
+    def _cfg_path():
+        """配置文件路径: 同目录下 outputdxf.cfg"""
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        return os.path.join(script_dir, 'outputdxf.cfg')
+
+    @staticmethod
+    def _load_cfg():
+        """读取配置文件, 返回参数字典"""
+        cfg = {}
+        cfg_path = DxfExportApp._cfg_path()
+        if not os.path.isfile(cfg_path):
+            return cfg
+        try:
+            import ConfigParser as cp
+        except ImportError:
+            import configparser as cp
+        try:
+            parser = cp.ConfigParser()
+            parser.read(cfg_path)
+            for section in parser.sections():
+                cfg[section] = {}
+                for k, v in parser.items(section):
+                    cfg[section][k] = v
+        except Exception:
+            pass
+        return cfg
+
+    def _apply_cfg_defaults(self):
+        """应用配置文件默认值到界面"""
+        if 'paths' in self.cfg:
+            p = self.cfg['paths'].get('output_path', '').strip()
+            if p:
+                self.var_output.set(p)
+        if 'layers' in self.cfg:
+            # 存储预选图层列表, 等 Job 加载后调用
+            self._cfg_layers = [
+                x.strip() for x in self.cfg['layers'].get('dxf', '*').split(';')
+                if x.strip()
+            ]
+        else:
+            self._cfg_layers = ['*']
+        if 'steps' in self.cfg:
+            self._cfg_steps = [
+                x.strip() for x in self.cfg['steps'].get('step', '').split(';')
+                if x.strip()
+            ]
+        else:
+            self._cfg_steps = []
 
     # -- 窗口初始化 ---------------------------------------------------------
 
@@ -1082,7 +1139,7 @@ class DxfExportApp(object):
         self._on_step_refresh()
 
     def _on_step_refresh(self):
-        """刷新 Step 列表"""
+        """刷新 Step 列表, 优先匹配配置文件中的 step"""
         steps = self.job.scan_steps()
         self._log(u'发现 %d 个 Step' % len(steps))
         menu = self.step_menu['menu']
@@ -1090,9 +1147,24 @@ class DxfExportApp(object):
         for s in steps:
             menu.add_command(
                 label=s, command=lambda v=s: self._on_step_select(v))
-        if steps:
-            self.var_step.set(steps[0])
-            self._on_step_select(steps[0])
+
+        if not steps:
+            return
+
+        # 配置匹配: 从 _cfg_steps 中找第一个存在的
+        matched = None
+        for cfg_step in self._cfg_steps:
+            cfg_lower = cfg_step.lower()
+            for s in steps:
+                if s.lower() == cfg_lower:
+                    matched = s
+                    break
+            if matched:
+                break
+
+        default_step = matched or steps[0]
+        self.var_step.set(default_step)
+        self._on_step_select(default_step)
 
     def _on_step_select(self, step_name):
         """选中 Step 后加载图层"""
@@ -1120,7 +1192,16 @@ class DxfExportApp(object):
 
         # 重建 checkbutton
         for lname in layers:
-            var = tk.IntVar(value=1)
+            # 配置文件预选
+            selected = 1  # 默认选中
+            if self._cfg_layers and self._cfg_layers != ['*']:
+                selected = 0
+                for cfg_layer in self._cfg_layers:
+                    if lname.lower() == cfg_layer.lower():
+                        selected = 1
+                        break
+
+            var = tk.IntVar(value=selected)
             var.trace('w', lambda *_a: self._update_layer_count())
             self.layer_vars[lname] = var
             ltype = self.job.classify_layer(lname)
