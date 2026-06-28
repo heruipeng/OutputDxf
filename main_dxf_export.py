@@ -694,13 +694,21 @@ class DxfExportApp(object):
 
     @staticmethod
     def _cfg_path():
-        """配置文件路径: 同目录下 outputdxf.cfg"""
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        return os.path.join(script_dir, 'outputdxf.cfg')
+        """配置文件路径: 同目录下 outputdxf.cfg (Python 2.7 中文路径兼容)"""
+        try:
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            # Python 2.7: 如果路径含中文, __file__ 可能是字节串, 需要显式转 unicode
+            if isinstance(script_dir, bytes):
+                script_dir = script_dir.decode(sys.getfilesystemencoding())
+            return os.path.join(script_dir, u'outputdxf.cfg')
+        except Exception:
+            # 降级: 用当前工作目录
+            return os.path.join(os.getcwdu() if hasattr(os, 'getcwdu') else os.getcwd(),
+                                u'outputdxf.cfg')
 
     @staticmethod
     def _load_cfg():
-        """读取配置文件, 返回参数字典"""
+        """读取配置文件 (Python 2.7 中文路径兼容)"""
         cfg = {}
         cfg_path = DxfExportApp._cfg_path()
         if not os.path.isfile(cfg_path):
@@ -711,7 +719,13 @@ class DxfExportApp(object):
             import configparser as cp
         try:
             parser = cp.ConfigParser()
-            parser.read(cfg_path)
+            # Python 2.7: ConfigParser.read() 对 unicode 路径兼容性差,
+            # 用 open + readfp 绕过
+            if PY_VERSION == 2 and isinstance(cfg_path, unicode):
+                with open(cfg_path, 'r') as fh:
+                    parser.readfp(fh)
+            else:
+                parser.read(cfg_path)
             for section in parser.sections():
                 cfg[section] = {}
                 for k, v in parser.items(section):
