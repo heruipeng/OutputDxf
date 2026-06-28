@@ -1,0 +1,44 @@
+# ============================================================================
+# genesis_menu_register.scr — Genesis 2000 菜单注册脚本
+# 鹏程工作室 出品
+# ============================================================================
+# 用法:
+#   在 Genesis 命令窗口中执行:  script genesis_menu_register.scr
+#   或放入 Genesis 启动脚本自动加载
+#
+# 功能:
+#   在 Genesis 菜单栏注册 "OutputDxf" 工具, 一键启动 DXF 导出
+#
+# 环境要求:
+#   - main_dxf_export.py 放在 scripts 目录或 PYTHONPATH 可访问路径
+#   - 需要 Python 2.7
+# ============================================================================
+
+# ---- 变量设置 (请按实际路径修改) ----
+# PYTHON_EXE = python
+# SCRIPT_DIR = d:/genesis/scripts
+
+# ---- 方式 1: 注册为 Genesis User Menu 项 ----
+# 在菜单 User -> OutputDxf 中显示
+COM menu_add_item,menu=user,item_name=OutputDxf,item_type=com,command=python main_dxf_export.py
+
+# ---- 方式 2: 注册为独立菜单 OutputDxf ----
+# COM menu_add_menu,menu_name=OutputDxf,after=user
+# COM menu_add_item,menu=OutputDxf,item_name=DXF Export GUI,item_type=com,command=python main_dxf_export.py
+# COM menu_add_item,menu=OutputDxf,item_name=DXF Export Batch,item_type=com,command=python main_dxf_export.py --genesis -j $JOB -s $STEP -o d:/dxf_output -u mm
+
+# ---- 方式 3: 通过 gen_exec 调用脚本注册 ----
+# gen_exec python d:/genesis/scripts/main_dxf_export.py
+
+# ---- Windows 环境额外配置 (可选) ----
+# 如果 Genesis 在 Windows 上运行，建议设置以下环境变量:
+# COM set_env,var=GENESIS_SCRIPTS,val=d:/genesis/scripts
+
+# ---- Linux 环境 ----
+# 在 Genesis 启动脚本中添加:
+# export PYTHONPATH=/home/genesis/scripts:$PYTHONPATH
+# alias outputdxf='python /home/genesis/scripts/main_dxf_export.py'
+
+print "OutputDxf menu registered successfully!"
+print "  GUI mode: User -> OutputDxf"
+print "  Batch mode: set JOB/STEP then run"
