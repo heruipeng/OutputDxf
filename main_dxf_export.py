@@ -1137,8 +1137,9 @@ class DxfExportApp(object):
             cb.pack(anchor=tk.W)
 
         self.layer_frame.update_idletasks()
-        self.layer_canvas.configure(
-            scrollregion=self.layer_canvas.bbox('all'))
+        self.layer_canvas.config(
+            scrollregion=(0, 0, self.layer_frame.winfo_reqwidth(),
+                          self.layer_frame.winfo_reqheight()))
 
     def _update_layer_count(self):
         """更新图层选中计数"""
