@@ -1341,25 +1341,46 @@ class DxfExportApp(object):
 
     @staticmethod
     def _kill_xmanager():
-        """检查 XMANAGER.exe 进程, 如果运行则 kill (批处理导出不需要 GUI)
+        """关闭 XMANAGER.exe 进程 (Genesis 批处理不需要 X 窗口)
         Python 2/3 兼容, 仅 Windows 有效"""
         import subprocess
         try:
             if sys.platform != 'win32':
                 return
-            # 查找 XMANAGER.exe 进程
-            proc = subprocess.Popen(
-                ['tasklist', '/fi', 'IMAGENAME eq XMANAGER.exe', '/fo', 'csv'],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-            out, _ = proc.communicate(timeout=10) if sys.version_info[0] >= 3 else proc.communicate()
-            if isinstance(out, bytes):
-                out = out.decode('mbcs', errors='replace')
-            if 'XMANAGER.exe' in out:
-                # 强制关闭
-                subprocess.call(['taskkill', '/f', '/im', 'XMANAGER.exe'], shell=True)
-                print('[OutputDxf] XMANAGER.exe 已关闭')
+            # 可能匹配的进程名
+            targets = ['XMANAGER.exe', 'XManager.exe', 'Xmanager.exe']
+            killed = False
+            for name in targets:
+                # tasklist 查找进程, shell=True 传字符串
+                cmd_find = 'tasklist /fi "IMAGENAME eq %s" /fo csv' % name
+                try:
+                    p = subprocess.Popen(cmd_find, shell=True,
+                                        stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE)
+                    out, _ = p.communicate()
+                    if isinstance(out, bytes):
+                        out = out.decode('gbk', errors='replace')
+                except Exception:
+                    out = ''
+                if name in out:
+                    # 方案1: taskkill /f /t 强制杀 (带子进程)
+                    cmd = 'taskkill /f /t /im %s' % name
+                    try:
+                        subprocess.call(cmd, shell=True)
+                    except Exception:
+                        pass
+                    # 方案2: wmic 保险 (taskkill 管不掉时)
+                    try:
+                        wmic = 'wmic process where name="%s" delete' % name
+                        subprocess.call(wmic, shell=True)
+                    except Exception:
+                        pass
+                    print('[OutputDxf] %s 已关闭' % name)
+                    killed = True
+            if not killed:
+                print('[OutputDxf] 未找到 XMANAGER 进程, 无需关闭')
         except Exception:
-            pass  # 无权限时静默跳过
+            pass
 
 
 # ==========================================================================
