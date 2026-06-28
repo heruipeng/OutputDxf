@@ -1336,19 +1336,38 @@ class DxfExportApp(object):
         GENESIS_GET = os.getenv('GENESIS_DIR','C:/genesis')
         Xmanager139 = GENESIS_GET + '/Xmanager139/XMANAGER.exe'
         scripts_name = os.getcwd() + '/AutoOutDxf.py'
-        scripts_param = f'{scripts_name} {tgz_path} {job} {step} {layer} {output_dir} {unit} {dxf_mode}'
+        scripts_param = '%s %s %s %s %s %s %s %s' % (
+            scripts_name, tgz_path, job, step, layer, output_dir, unit, dxf_mode)
         if os.path.isdir(GENESIS_GET) is False:
             print(GENESIS_GET)
-            print(f'[OutputDxf] 未找到 {GENESIS_GET} 路径')
+            print('[OutputDxf] 未找到 %s 路径' % GENESIS_GET)
             return
         else:
-            GENESIS_GET = GENESIS_GET + f'/e97/get/get.exe -s{scripts_param}'
+            GENESIS_GET = GENESIS_GET + '/e97/get/get.exe -s' + scripts_param
 
         # 检查并关闭 XMANAGER.exe (Genesis 批处理不需要 X 窗口)
         self._kill_xmanager()
-        subprocess.Popen(Xmanager139, shell=True,stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        # 静默启动, 不弹控制台 (Windows only)
+        si = None
+        cf = 0
+        if sys.platform == 'win32':
+            try:
+                si = subprocess.STARTUPINFO()
+                si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                si.wShowWindow = 0  # SW_HIDE
+                cf = 0x08000000  # CREATE_NO_WINDOW
+            except Exception:
+                si = None
+                cf = 0
+
+        subprocess.Popen(Xmanager139, shell=True,
+                        startupinfo=si, creationflags=cf,
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         print(GENESIS_GET)
-        subprocess.Popen(GENESIS_GET, shell=True,stdout=subprocess.PIPE, stderr=subprocess.PIPE,creationflags=subprocess.CREATE_NEW_CONSOLE)
+        subprocess.Popen(GENESIS_GET, shell=True,
+                        startupinfo=si, creationflags=cf,
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
     @staticmethod
