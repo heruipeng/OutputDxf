@@ -821,7 +821,10 @@ class DxfExportApp(object):
         # 标题栏
         self._build_header()
 
-        # 滚动主区域
+        # 底部按钮 (先 pack, 确保不被挤出)
+        self._build_footer()
+
+        # 滚动主区域 (填充剩余空间)
         main_canvas = tk.Canvas(self.root, bg=self.BG, highlightthickness=0)
         main_scroll = tk.Scrollbar(self.root, orient=tk.VERTICAL,
                                    command=main_canvas.yview)
@@ -864,9 +867,6 @@ class DxfExportApp(object):
 
         # 日志区域
         self._card_log()
-
-        # 底部按钮
-        self._build_footer()
 
     def _build_header(self):
         hdr = tk.Frame(self.root, bg=self.ACCENT, height=40)
@@ -1105,26 +1105,27 @@ class DxfExportApp(object):
             0, 0, 0, 14, fill=self.GREEN, outline='')
 
     def _build_footer(self):
-        foot = tk.Frame(self.root, bg=self.BG, height=32)
-        foot.pack(fill=tk.X, padx=6, pady=(2, 6))
+        """底部操作栏 — 状态 + 导出 + 退出"""
+        foot = tk.Frame(self.root, bg=self.BG, height=44)
+        foot.pack(fill=tk.X, padx=8, pady=(4, 8), side=tk.BOTTOM)
         foot.pack_propagate(0)
 
         self.status_label = tk.Label(foot, text=u'就绪',
                                      font=self.FONT_NORMAL,
                                      bg=self.BG, fg=self.GRAY, anchor=tk.W)
-        self.status_label.pack(side=tk.LEFT, padx=2)
+        self.status_label.pack(side=tk.LEFT, padx=4)
 
         tk.Button(foot, text=u'  退 出  ', command=self.root.quit,
                   bg=self.RED, fg='white', relief=tk.FLAT,
                   font=self.FONT_BOLD, cursor='hand2',
-                  padx=14).pack(side=tk.RIGHT, padx=(3, 0), ipady=3)
+                  padx=20, pady=2).pack(side=tk.RIGHT, padx=(6, 0), ipady=4)
 
         self.start_btn = tk.Button(foot, text=u'  ▶ 开始导出  ',
                                    command=self._on_export,
                                    bg=self.GREEN, fg='white', relief=tk.FLAT,
                                    font=self.FONT_BOLD, cursor='hand2',
-                                   padx=16)
-        self.start_btn.pack(side=tk.RIGHT, ipady=3)
+                                   padx=24, pady=2)
+        self.start_btn.pack(side=tk.RIGHT, ipady=4)
 
     # -- 交互逻辑 -----------------------------------------------------------
 
