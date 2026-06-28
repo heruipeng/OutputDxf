@@ -951,9 +951,10 @@ class DxfExportApp(object):
                                    fg=self.GRAY, anchor=tk.W)
         self.layer_info.pack(fill=tk.X, padx=2, pady=(0, 4))
 
-        # 图层多选: Canvas + Scrollbar, 鼠标滚轮滚动, 固定高度180px
-        tree_frame = tk.Frame(inner, bg=self.CARD_BG, height=180)
-        tree_frame.pack(fill=tk.BOTH, expand=1, pady=(0, 2))
+        # 图层多选区域 — 固定 260px, 微灰底色
+        tree_frame = tk.Frame(inner, bg='#F2F4F4', height=260, bd=1,
+                              relief=tk.SUNKEN)
+        tree_frame.pack(fill=tk.X, pady=(0, 2))
         tree_frame.pack_propagate(0)
 
         self.layer_canvas = tk.Canvas(tree_frame, bg='#F2F4F4',
@@ -1224,28 +1225,24 @@ class DxfExportApp(object):
         layers = self.job.scan_layers(step)
         self._log(u'Step [%s] 发现 %d 个图层' % (step, len(layers)))
 
-        # 更新图层信息条
-        self.layer_info.config(
-            text=u'  Step: %s  |  共 %d 层  |  已选: %d' % (step, len(layers), len(layers)),
-            fg=self.ACCENT)
-
         # 清空旧的
         for w in self.layer_frame.winfo_children():
             w.destroy()
         self.layer_vars.clear()
 
-        # 重建 checkbutton
+        # 重建 checkbutton (按配置过滤)
         for lname in layers:
-            # 配置文件预选
-            selected = 1  # 默认选中
+            # 配置文件图层过滤: 非 * 时只显示匹配的图层
             if self._cfg_layers and self._cfg_layers != ['*']:
-                selected = 0
+                matched = False
                 for cfg_layer in self._cfg_layers:
                     if lname.lower() == cfg_layer.lower():
-                        selected = 1
+                        matched = True
                         break
+                if not matched:
+                    continue  # 不匹配的图层不显示
 
-            var = tk.IntVar(value=selected)
+            var = tk.IntVar(value=1)  # 显示的图层默认选中
             var.trace('w', lambda *_a: self._update_layer_count())
             self.layer_vars[lname] = var
             ltype = self.job.classify_layer(lname)
@@ -1265,6 +1262,7 @@ class DxfExportApp(object):
         self.layer_canvas.config(
             scrollregion=(0, 0, self.layer_frame.winfo_reqwidth(),
                           self.layer_frame.winfo_reqheight()))
+        self._update_layer_count()  # 更新信息条 (含过滤后计数)
 
     def _update_layer_count(self):
         """更新图层选中计数"""
