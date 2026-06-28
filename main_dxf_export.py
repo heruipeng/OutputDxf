@@ -13,7 +13,7 @@
 =============================================================================
  模块划分:
    1. DxfWriter     — 纯文本 DXF R12/R14 写入模块
-   2. GenesisAPI    — Genesis 数据接口适配层
+   2. JobAdapter    — Genesis 数据接口适配层
    3. DataProcessor — 图形数据预处理 (过滤/去重/优化)
    4. DxfExportApp  — Tkinter GUI 主界面
 =============================================================================
@@ -352,44 +352,32 @@ class DxfWriter(object):
         return self.filepath
 
 
+# -*- coding: utf-8 -*-
+# auto-generated replacement block
+
 # ==========================================================================
-# 2. GenesisAPI — Genesis 数据接口适配层
+# 2. JobAdapter — TGZ 解压 & Step/Layer 扫描
 # ==========================================================================
 
-class GenesisAPI(object):
-    """
-    Genesis 2000 数据接口适配层 (纯文件模式)
-
-    Genesis API 对接预留 — 用户后续自行添加 import genesis 相关调用。
-    当前完整实现: tgz 解压 → steps/ 目录扫描 → layers/ 目录扫描。
-    """
+class JobAdapter(object):
+    """TGZ 加载 / 解压 / Step扫描 / Layer扫描 (纯文件模式)"""
 
     def __init__(self):
         self.job_path = ''
-        self.steps = []
-        self.layers = {}
-        self.extracted_dir = ''     # tgz 解压后的真实目录
-
-    # -- Job 操作 ----------------------------------------------------------
-
-    def open_job(self, job_path):
-        """打开 Genesis Job (tgz自动解压到临时目录)"""
-        self.job_path = job_path
         self.extracted_dir = ''
 
+    def load(self, job_path):
+        self.job_path = job_path
+        self.extracted_dir = ''
         if not os.path.isdir(job_path) and not os.path.isfile(job_path):
             return False
-
-        # 如果是 tgz, 立即解压供后续扫描
         if self._is_tgz():
             extracted = self._extract_tgz()
             if not extracted:
                 return False
-
         return True
 
-    def get_job_name(self):
-        """获取当前 Job 名称"""
+    def job_name(self):
         if self.job_path:
             base = os.path.basename(self.job_path.rstrip('/\\'))
             if base.endswith('.tar.gz'):
@@ -399,91 +387,48 @@ class GenesisAPI(object):
             return base
         return 'UNKNOWN'
 
-    # -- Step 操作 ---------------------------------------------------------
-
-    def get_steps(self):
-        """获取 Job 下所有 Step 列表"""
-        self.steps = self._scan_steps_fs()
-        return self.steps
-
     def _is_tgz(self):
-        """判断 job_path 是否是压缩包"""
         lp = self.job_path.lower()
         return (lp.endswith('.tgz') or lp.endswith('.tar.gz')) \
                and os.path.isfile(self.job_path)
 
     def _extract_tgz(self):
-        """解压 tgz 到系统临时目录, 返回解压后的根目录
-
-        Genesis tgz 内部结构:
-            {job_name}/
-              steps/
-                {step_name}/
-                  layers/
-                    {layer_name}/
-                      ...
-        解压到:  C:/tmp/{job_name}/  或  /tmp/{job_name}/
-        """
         if not self._is_tgz():
             return self.job_path
-
-        job_name = self.get_job_name()
-
-        # 临时目录: Windows C:/tmp  /  Linux /tmp
+        name = self.job_name()
         if sys.platform == 'win32':
             tmp_root = os.path.join('C:', os.sep, 'tmp')
         else:
             tmp_root = os.path.join(os.sep, 'tmp')
-
-        self.extracted_dir = os.path.join(tmp_root, job_name)
-
-        # 如果已解压且 tgz 未变, 复用
+        self.extracted_dir = os.path.join(tmp_root, name)
         marker = os.path.join(self.extracted_dir, '.extracted')
         if os.path.isdir(self.extracted_dir) and os.path.isfile(marker):
             try:
                 with open(marker, 'r') as f:
-                    cached = f.read().strip()
-                if cached == self.job_path:
-                    return self.extracted_dir
+                    if f.read().strip() == self.job_path:
+                        return self.extracted_dir
             except Exception:
                 pass
-
-        # 清空旧解压目录
         if os.path.isdir(self.extracted_dir):
             try:
                 shutil.rmtree(self.extracted_dir)
             except Exception:
                 pass
-
         if not os.path.isdir(self.extracted_dir):
             os.makedirs(self.extracted_dir)
-
-        # 解压
         try:
             with tarfile.open(self.job_path, 'r:gz') as tf:
                 tf.extractall(self.extracted_dir)
-            # 写标记文件, 记录来源 tgz
             with open(marker, 'w') as f:
                 f.write(self.job_path)
         except Exception:
             return None
-
         return self.extracted_dir
 
-    def _find_steps_dir(self, root_dir):
-        """在解压目录下定位 steps/ 子目录
-
-        Genesis tgz 解压后可能的结构:
-          方案A: root/steps/{step}/layers/...        (标准)
-          方案B: root/{job_name}/steps/{step}/...    (有外层目录)
-          方案C: root/{step}/layers/...              (steps 就是根)
-        """
-        # 优先: root/steps
+    def find_steps_dir(self, root_dir):
         direct = os.path.join(root_dir, 'steps')
         if os.path.isdir(direct):
             return direct
-
-        # 搜索子目录中的 steps/
         try:
             for item in os.listdir(root_dir):
                 candidate = os.path.join(root_dir, item, 'steps')
@@ -491,36 +436,26 @@ class GenesisAPI(object):
                     return candidate
         except Exception:
             pass
-
-        # 降级: 把根目录当 steps
         return root_dir
 
-    def _scan_steps_fs(self):
-        """从本地目录/压缩包扫描 Step 列表"""
+    def scan_steps(self):
         steps = []
-        job_path = self.job_path
-        if not job_path:
+        if not self.job_path:
             return steps
-
         if self._is_tgz():
-            # 解压到临时目录
             extracted = self._extract_tgz()
             if not extracted:
-                # 尝试直接从 tgz 内扫描 (兼容旧逻辑)
                 try:
-                    with tarfile.open(job_path, 'r:gz') as tf:
-                        for member in tf.getmembers():
-                            parts = member.name.split('/')
+                    with tarfile.open(self.job_path, 'r:gz') as tf:
+                        for m in tf.getmembers():
+                            parts = m.name.split('/')
                             if len(parts) >= 2 and parts[0] not in steps:
                                 if not parts[0].startswith('.'):
                                     steps.append(parts[0])
                 except Exception:
                     pass
-                self.steps = sorted(steps)
-                return self.steps
-
-            # 定位 steps/ 目录
-            steps_dir = self._find_steps_dir(extracted)
+                return sorted(steps)
+            steps_dir = self.find_steps_dir(extracted)
             try:
                 for item in os.listdir(steps_dir):
                     full = os.path.join(steps_dir, item)
@@ -528,10 +463,8 @@ class GenesisAPI(object):
                         steps.append(item)
             except Exception:
                 pass
-
-        elif os.path.isdir(job_path):
-            # 本地目录
-            steps_dir = self._find_steps_dir(job_path)
+        elif os.path.isdir(self.job_path):
+            steps_dir = self.find_steps_dir(self.job_path)
             try:
                 for item in os.listdir(steps_dir):
                     full = os.path.join(steps_dir, item)
@@ -539,125 +472,58 @@ class GenesisAPI(object):
                         steps.append(item)
             except Exception:
                 pass
+        return sorted(steps)
 
-        self.steps = sorted(steps)
-        return self.steps
-
-    # -- Layer 操作 --------------------------------------------------------
-
-    def get_layers(self, step_name):
-        """获取指定 Step 下所有图层"""
-        if not step_name:
-            return []
-        return self._scan_layers_fs(step_name)
-
-    def _scan_layers_fs(self, step_name):
-        """从本地文件系统扫描图层
-
-        Genesis tgz 解压后的图层在: steps/{step}/layers/{layer}/
-        """
+    def scan_layers(self, step_name):
         layers = []
-        job_path = self.job_path
-        if not job_path:
+        if not self.job_path or not step_name:
             return layers
-
         if self._is_tgz():
-            # 走解压目录
             extracted = self.extracted_dir or self._extract_tgz()
             if extracted:
-                steps_dir = self._find_steps_dir(extracted)
+                steps_dir = self.find_steps_dir(extracted)
                 step_dir = os.path.join(steps_dir, step_name)
-                # 图层可能在 step/layers/ 或 step/ 根
-                for candidate in [os.path.join(step_dir, 'layers'), step_dir]:
-                    if os.path.isdir(candidate):
+                for c in [os.path.join(step_dir, 'layers'), step_dir]:
+                    if os.path.isdir(c):
                         try:
-                            for item in os.listdir(candidate):
-                                full = os.path.join(candidate, item)
+                            for item in os.listdir(c):
+                                full = os.path.join(c, item)
                                 if os.path.isdir(full) and not item.startswith('.'):
                                     layers.append(item)
                         except Exception:
                             pass
                         if layers:
                             break
-        elif os.path.isdir(job_path):
-            # 本地目录
-            steps_dir = self._find_steps_dir(job_path)
+        elif os.path.isdir(self.job_path):
+            steps_dir = self.find_steps_dir(self.job_path)
             step_dir = os.path.join(steps_dir, step_name)
-            for candidate in [os.path.join(step_dir, 'layers'), step_dir]:
-                if os.path.isdir(candidate):
+            for c in [os.path.join(step_dir, 'layers'), step_dir]:
+                if os.path.isdir(c):
                     try:
-                        for item in os.listdir(candidate):
-                            full = os.path.join(candidate, item)
+                        for item in os.listdir(c):
+                            full = os.path.join(c, item)
                             if os.path.isdir(full) and not item.startswith('.'):
                                 layers.append(item)
                     except Exception:
                         pass
                     if layers:
                         break
-
         return sorted(layers)
 
-    # -- 图形数据提取 ------------------------------------------------------
-
-    def get_layer_data(self, step_name, layer_name, data_type='all'):
-        """
-        提取图层图形数据 (预留)
-
-        TODO: 用户后续在此方法中添加 Genesis API 调用
-        返回空数据 — 当前版本仅实现 Step/Layer 扫描, 图形提取由用户自行对接
-
-        Returns:
-            dict: {
-                'lines':     [(x1,y1,x2,y2), ...],
-                'circles':   [(cx,cy,radius), ...],
-                'pads':      [(cx,cy,width,height,rotation), ...],
-                'arcs':      [(cx,cy,radius,start_ang,end_ang), ...],
-                'surfaces':  [ [(x,y),...], ... ],
-                'drills':    [(cx,cy,diameter), ...],
-            }
-        """
-        return {
-            'lines':     [],
-            'circles':   [],
-            'pads':      [],
-            'arcs':      [],
-            'surfaces':  [],
-            'drills':    [],
-        }
-
-    # -- 辅助: 判断图层类型 --------------------------------------------------
-
-    def classify_layer(self, layer_name):
+    @staticmethod
+    def classify_layer(layer_name):
         """根据图层名称推断图层类型"""
         lower = layer_name.lower().replace('_', '').replace('-', '').replace(' ', '')
         for keyword, ltype in LAYER_TYPE_MAP.items():
             kw = keyword.replace('_', '').replace('-', '').replace(' ', '')
             if kw in lower:
                 return ltype
-        return 'COPPER'  # 默认当作信号层
-
-    # -- 辅助: 单位转换 ------------------------------------------------------
-
-    @staticmethod
-    def mil_to_mm(val):
-        """mil -> 毫米"""
-        return float(val) * 0.0254
-
-    @staticmethod
-    def mil_to_inch(val):
-        """mil -> 英寸"""
-        return float(val) * 0.001
-
-    @staticmethod
-    def mm_to_mil(val):
-        """毫米 -> mil"""
-        return float(val) / 0.0254
+        return 'COPPER'
 
 
 # ==========================================================================
 # 3. DataProcessor — 图形数据预处理
 # ==========================================================================
-
 class DataProcessor(object):
     """图形数据预处理: 过滤、去重、优化"""
 
@@ -810,7 +676,7 @@ class DxfExportApp(object):
     BORDER    = '#BDC3C7'
 
     def __init__(self):
-        self.genesis  = GenesisAPI()
+        self.job = JobAdapter()
         self.dp       = DataProcessor(unit='mm')
         self.worker   = None  # 转换工作状态
 
@@ -1159,20 +1025,20 @@ class DxfExportApp(object):
             return
 
         self._log(u'加载 Job: ' + path)
-        ok = self.genesis.open_job(path)
+        ok = self.job.load(path)
         if not ok:
             messagebox.showerror(u'错误', u'无法打开 Job:\n' + path)
             return
 
-        job_name = self.genesis.get_job_name()
+        job_name = self.job.job_name()
         self._log(u'Job 名称: ' + job_name)
-        if self.genesis.extracted_dir:
-            self._log(u'解压至: ' + self.genesis.extracted_dir)
+        if self.job.extracted_dir:
+            self._log(u'解压至: ' + self.job.extracted_dir)
         self._on_step_refresh()
 
     def _on_step_refresh(self):
         """刷新 Step 列表"""
-        steps = self.genesis.get_steps()
+        steps = self.job.scan_steps()
         self._log(u'发现 %d 个 Step' % len(steps))
         menu = self.step_menu['menu']
         menu.delete(0, tk.END)
@@ -1194,7 +1060,7 @@ class DxfExportApp(object):
         if not step or step.startswith(u'('):
             return
 
-        layers = self.genesis.get_layers(step)
+        layers = self.job.scan_layers(step)
         self._log(u'Step [%s] 发现 %d 个图层' % (step, len(layers)))
 
         # 清空旧的
@@ -1206,7 +1072,7 @@ class DxfExportApp(object):
         for lname in layers:
             var = tk.IntVar(value=1)
             self.layer_vars[lname] = var
-            ltype = self.genesis.classify_layer(lname)
+            ltype = self.job.classify_layer(lname)
             color = DXF_LAYER_COLORS.get(ltype, 7)
             color_hex = ['#000000','#FF0000','#FFFF00','#00FF00',
                          '#00FFFF','#0000FF','#FF00FF','#FFFFFF'][color - 1]
