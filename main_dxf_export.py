@@ -865,14 +865,25 @@ class DxfExportApp(object):
                                    fg=self.GRAY, anchor=tk.W)
         self.layer_info.pack(fill=tk.X, padx=2, pady=(0, 4))
 
-        # 图层多选: Canvas + Checkbutton 列表
-        self.layer_canvas = tk.Canvas(inner, bg=self.CARD_BG,
-                                      height=120, highlightthickness=0)
-        self.layer_canvas.pack(fill=tk.X, pady=(0, 2))
+        # 图层多选: Canvas + Scrollbar, 支持鼠标滚轮
+        tree_frame = tk.Frame(inner, bg=self.CARD_BG)
+        tree_frame.pack(fill=tk.BOTH, expand=1, pady=(0, 2))
+
+        self.layer_canvas = tk.Canvas(tree_frame, bg=self.CARD_BG,
+                                      highlightthickness=0)
+        layer_scroll = tk.Scrollbar(tree_frame, orient=tk.VERTICAL,
+                                    command=self.layer_canvas.yview)
+        self.layer_canvas.configure(yscrollcommand=layer_scroll.set)
+        layer_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self.layer_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
 
         self.layer_frame = tk.Frame(self.layer_canvas, bg=self.CARD_BG)
-        self.layer_canvas.create_window((0, 0), window=self.layer_frame,
-                                        anchor=tk.NW)
+        self._layer_canvas_id = self.layer_canvas.create_window(
+            (0, 0), window=self.layer_frame, anchor=tk.NW, tags='layer_frame')
+
+        # 绑定滚轮滚动
+        self.layer_canvas.bind('<Enter>', self._bind_layer_scroll)
+        self.layer_canvas.bind('<Leave>', self._unbind_layer_scroll)
 
         # 控制按钮
         ctrl = tk.Frame(inner, bg=self.CARD_BG)
@@ -885,6 +896,33 @@ class DxfExportApp(object):
                   bg=self.ACCENT, width=6).pack(side=tk.LEFT)
 
         self.layer_vars = {}   # {layer_name: tk.IntVar}
+
+        # canvas frame 大小变化时自动更新内部窗口宽度
+        def _resize_layer_canvas(event):
+            self.layer_canvas.itemconfig(self._layer_canvas_id, width=event.width)
+        self.layer_canvas.bind('<Configure>', _resize_layer_canvas)
+
+    def _bind_layer_scroll(self, _event):
+        if sys.platform == 'win32':
+            self.layer_canvas.bind_all('<MouseWheel>', self._on_layer_mousewheel)
+        else:
+            self.layer_canvas.bind_all('<Button-4>', self._on_layer_mousewheel)
+            self.layer_canvas.bind_all('<Button-5>', self._on_layer_mousewheel)
+
+    def _unbind_layer_scroll(self, _event):
+        if sys.platform == 'win32':
+            self.layer_canvas.unbind_all('<MouseWheel>')
+        else:
+            self.layer_canvas.unbind_all('<Button-4>')
+            self.layer_canvas.unbind_all('<Button-5>')
+
+    def _on_layer_mousewheel(self, event):
+        if sys.platform == 'win32':
+            self.layer_canvas.yview_scroll(int(-1 * (event.delta / 120)), 'units')
+        elif event.num == 4:
+            self.layer_canvas.yview_scroll(-1, 'units')
+        elif event.num == 5:
+            self.layer_canvas.yview_scroll(1, 'units')
 
     # -- 设置卡片 -----------------------------------------------------------
 
