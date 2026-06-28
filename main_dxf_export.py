@@ -660,8 +660,8 @@ class DataProcessor(object):
 
 class DxfExportApp(object):
     TITLE  = 'OutputDxf - Genesis DXF Export v' + VERSION
-    WIDTH  = 600
-    HEIGHT = 620
+    WIDTH  = 660
+    HEIGHT = 730
 
     # 配色
     BG        = '#EAECEE'
@@ -777,8 +777,9 @@ class DxfExportApp(object):
         self.root.update_idletasks()
         sw = self.root.winfo_screenwidth()
         sh = self.root.winfo_screenheight()
-        self.root.geometry(
-            '+%d+%d' % ((sw - self.WIDTH)//2, (sh - self.HEIGHT)//2))
+        x = (sw - self.WIDTH) // 2
+        y = max(0, (sh - self.HEIGHT) // 2)
+        self.root.geometry('+%d+%d' % (x, y))
 
     def _setup_fonts(self):
         """自适应字体"""
@@ -821,16 +822,30 @@ class DxfExportApp(object):
         self._build_header()
 
         # 滚动主区域
-        main_canvas = tk.Canvas(self.root, bg=self.BG, highlightthickness=0,
-                                height=self.HEIGHT - 90)
-        main_canvas.pack(fill=tk.BOTH, expand=1)
+        main_canvas = tk.Canvas(self.root, bg=self.BG, highlightthickness=0)
+        main_scroll = tk.Scrollbar(self.root, orient=tk.VERTICAL,
+                                   command=main_canvas.yview)
+        main_canvas.configure(yscrollcommand=main_scroll.set)
+        main_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        main_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
 
         self.main_frame = tk.Frame(main_canvas, bg=self.BG)
-        main_canvas.create_window((0, 0), window=self.main_frame,
-                                  anchor=tk.NW, tags='main_frame')
+        self._main_canvas_id = main_canvas.create_window(
+            (0, 0), window=self.main_frame, anchor=tk.NW, tags='main_frame')
         self.main_frame.bind('<Configure>',
                              lambda e: main_canvas.configure(
                                  scrollregion=main_canvas.bbox('all')))
+
+        # canvas 宽度跟随
+        def _resize_main_canvas(event):
+            main_canvas.itemconfig(self._main_canvas_id, width=event.width)
+        main_canvas.bind('<Configure>', _resize_main_canvas)
+
+        # 主区域鼠标滚轮
+        main_canvas.bind('<Enter>',
+                         lambda e: self._bind_canvas_scroll(main_canvas, e))
+        main_canvas.bind('<Leave>',
+                         lambda e: self._unbind_canvas_scroll(main_canvas, e))
 
         # Job 路径卡片
         self._card_job()
@@ -903,8 +918,8 @@ class DxfExportApp(object):
         self.var_job = tk.StringVar()
         e = tk.Entry(inner, textvariable=self.var_job,
                      font=self.FONT_MONO, relief=tk.FLAT,
-                     bg=self.LIGHT_BG, bd=1)
-        e.pack(side=tk.LEFT, fill=tk.X, expand=1, ipady=3)
+                     bg=self.LIGHT_BG, fg=self.FG, bd=1)
+        e.pack(side=tk.LEFT, fill=tk.X, expand=1, ipady=5)
         self._btn(inner, u'浏览', self._on_job_browse).pack(
             side=tk.RIGHT, padx=(3, 0))
         self._btn(inner, u'加载', self._on_job_load,
@@ -936,11 +951,12 @@ class DxfExportApp(object):
                                    fg=self.GRAY, anchor=tk.W)
         self.layer_info.pack(fill=tk.X, padx=2, pady=(0, 4))
 
-        # 图层多选: Canvas + Scrollbar, 支持鼠标滚轮
-        tree_frame = tk.Frame(inner, bg=self.CARD_BG)
+        # 图层多选: Canvas + Scrollbar, 鼠标滚轮滚动, 固定高度180px
+        tree_frame = tk.Frame(inner, bg=self.CARD_BG, height=180)
         tree_frame.pack(fill=tk.BOTH, expand=1, pady=(0, 2))
+        tree_frame.pack_propagate(0)
 
-        self.layer_canvas = tk.Canvas(tree_frame, bg=self.CARD_BG,
+        self.layer_canvas = tk.Canvas(tree_frame, bg='#F2F4F4',
                                       highlightthickness=0)
         layer_scroll = tk.Scrollbar(tree_frame, orient=tk.VERTICAL,
                                     command=self.layer_canvas.yview)
@@ -948,7 +964,7 @@ class DxfExportApp(object):
         layer_scroll.pack(side=tk.RIGHT, fill=tk.Y)
         self.layer_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
 
-        self.layer_frame = tk.Frame(self.layer_canvas, bg=self.CARD_BG)
+        self.layer_frame = tk.Frame(self.layer_canvas, bg='#F2F4F4')
         self._layer_canvas_id = self.layer_canvas.create_window(
             (0, 0), window=self.layer_frame, anchor=tk.NW, tags='layer_frame')
 
@@ -974,26 +990,39 @@ class DxfExportApp(object):
         self.layer_canvas.bind('<Configure>', _resize_layer_canvas)
 
     def _bind_layer_scroll(self, _event):
-        if sys.platform == 'win32':
-            self.layer_canvas.bind_all('<MouseWheel>', self._on_layer_mousewheel)
-        else:
-            self.layer_canvas.bind_all('<Button-4>', self._on_layer_mousewheel)
-            self.layer_canvas.bind_all('<Button-5>', self._on_layer_mousewheel)
+        self._bind_canvas_scroll(self.layer_canvas, _event)
 
     def _unbind_layer_scroll(self, _event):
+        self._unbind_canvas_scroll(self.layer_canvas, _event)
+
+    def _bind_canvas_scroll(self, canvas, _event):
         if sys.platform == 'win32':
-            self.layer_canvas.unbind_all('<MouseWheel>')
+            canvas.bind_all('<MouseWheel>',
+                            lambda e: self._on_canvas_mousewheel(canvas, e))
         else:
-            self.layer_canvas.unbind_all('<Button-4>')
-            self.layer_canvas.unbind_all('<Button-5>')
+            canvas.bind_all('<Button-4>',
+                            lambda e: self._on_canvas_mousewheel(canvas, e))
+            canvas.bind_all('<Button-5>',
+                            lambda e: self._on_canvas_mousewheel(canvas, e))
+
+    def _unbind_canvas_scroll(self, canvas, _event):
+        if sys.platform == 'win32':
+            canvas.unbind_all('<MouseWheel>')
+        else:
+            canvas.unbind_all('<Button-4>')
+            canvas.unbind_all('<Button-5>')
 
     def _on_layer_mousewheel(self, event):
+        self._on_canvas_mousewheel(self.layer_canvas, event)
+
+    @staticmethod
+    def _on_canvas_mousewheel(canvas, event):
         if sys.platform == 'win32':
-            self.layer_canvas.yview_scroll(int(-1 * (event.delta / 120)), 'units')
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), 'units')
         elif event.num == 4:
-            self.layer_canvas.yview_scroll(-1, 'units')
+            canvas.yview_scroll(-1, 'units')
         elif event.num == 5:
-            self.layer_canvas.yview_scroll(1, 'units')
+            canvas.yview_scroll(1, 'units')
 
     # -- 设置卡片 -----------------------------------------------------------
 
@@ -1006,8 +1035,9 @@ class DxfExportApp(object):
         self.var_output = tk.StringVar()
         tk.Entry(row, textvariable=self.var_output,
                  font=self.FONT_MONO, relief=tk.FLAT,
-                 bg=self.LIGHT_BG, bd=1).pack(side=tk.LEFT, fill=tk.X,
-                                              expand=1, ipady=3)
+                 bg=self.LIGHT_BG, fg=self.FG,
+                 bd=1).pack(side=tk.LEFT, fill=tk.X,
+                            expand=1, ipady=5)
         self._btn(row, u'浏览', self._on_output_browse,
                   bg=self.ACCENT, width=5).pack(side=tk.RIGHT, padx=(4, 0))
         tk.Label(inner, text=u' 导出文件自动携带 Job名+Step名+图层名',
@@ -1224,10 +1254,10 @@ class DxfExportApp(object):
                          '#00FFFF','#0000FF','#FF00FF','#FFFFFF'][color - 1]
             display = '%s  [%s]' % (lname, ltype)
             cb = tk.Checkbutton(self.layer_frame, text=display,
-                                variable=var, bg=self.CARD_BG,
+                                variable=var, bg='#F2F4F4',
                                 font=self.FONT_SMALL,
-                                selectcolor=self.CARD_BG,
-                                activebackground=self.CARD_BG,
+                                selectcolor='#F2F4F4',
+                                activebackground='#EAECEE',
                                 fg=color_hex)
             cb.pack(anchor=tk.W)
 
