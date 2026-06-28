@@ -1062,23 +1062,17 @@ class DxfExportApp(object):
                            selectcolor=self.CARD_BG).pack(
                 side=tk.LEFT, padx=(2, 8))
 
-        # DXF 版本 + 选项
+        # DXF 模式
         optf = tk.Frame(inner, bg=self.CARD_BG)
         optf.pack(fill=tk.X, pady=(4, 0))
-        tk.Label(optf, text=u'DXF 版本:', font=self.FONT_SMALL,
+        tk.Label(optf, text=u'DXF 模式:', font=self.FONT_SMALL,
                  bg=self.CARD_BG, fg=self.GRAY).pack(side=tk.LEFT)
-        self.var_dxf_ver = tk.StringVar(value='R12')
-        for v in ['R12', 'R14']:
-            tk.Radiobutton(optf, text=v, variable=self.var_dxf_ver, value=v,
+        self.var_dxf_mode = tk.StringVar(value='outline')
+        for txt, val in [(u'  轮廓  ', 'outline'), (u'  实体  ', 'solid')]:
+            tk.Radiobutton(optf, text=txt, variable=self.var_dxf_mode, value=val,
                            bg=self.CARD_BG, font=self.FONT_SMALL,
                            selectcolor=self.CARD_BG).pack(
                 side=tk.LEFT, padx=(2, 8))
-
-        self.var_split = tk.IntVar(value=0)
-        tk.Checkbutton(optf, text=u'每层单独文件',
-                       variable=self.var_split,
-                       bg=self.CARD_BG, font=self.FONT_SMALL,
-                       selectcolor=self.CARD_BG).pack(side=tk.RIGHT)
 
     # -- 日志卡片 -----------------------------------------------------------
 
@@ -1297,7 +1291,7 @@ class DxfExportApp(object):
         step = self.var_step.get().strip()
         output_dir = self.var_output.get().strip()
         unit = self.var_unit.get()
-        split = bool(self.var_split.get())
+        dxf_mode = self.var_dxf_mode.get()
 
         if not job_path:
             messagebox.showwarning(u'提示', u'请先加载 Job')
@@ -1314,22 +1308,25 @@ class DxfExportApp(object):
             messagebox.showwarning(u'提示', u'请至少选择一个图层')
             return
 
+        mode_text = u'轮廓' if dxf_mode == 'outline' else u'实体'
+
         # 参数汇总
         self._log(u'========== 导出参数确认 ==========')
         self._log(u'Job:     %s' % job_path)
         self._log(u'Step:    %s' % step)
         self._log(u'单位:    %s' % ('毫米' if unit == 'mm' else '英寸'))
         self._log(u'输出:    %s' % output_dir)
-        self._log(u'模式:    %s' % (u'每层单独文件' if split else u'合并单文件'))
+        self._log(u'模式:    %s' % mode_text)
         self._log(u'图层:    %s' % (', '.join(selected_layers)))
         self._log(u'=====================================')
 
         messagebox.showinfo(u'准备就绪',
             u'参数校验通过!\n\n'
             u'选中 %d 个图层\n'
+            u'DXF 模式: %s\n'
             u'输出目录: %s\n\n'
             u'导出逻辑待后续添加 (在 get_layer_data() 中对接 Genesis API)。' %
-            (len(selected_layers), output_dir))
+            (len(selected_layers), mode_text, output_dir))
 
         self.status_label.config(text=u'就绪 (导出逻辑待添加)', fg=self.GRAY)
 
