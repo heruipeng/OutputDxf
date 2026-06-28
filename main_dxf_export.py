@@ -1287,6 +1287,26 @@ class DxfExportApp(object):
         Xmanager139 = GENESIS_GET + '/Xmanager139/'
         print(GENESIS_GET)
 
+        # 检查并关闭 XMANAGER.exe (Genesis 批处理不需要 X 窗口)
+        self._kill_xmanager()
+
+    @staticmethod
+    def _kill_xmanager():
+        """检查 XMANAGER.exe 进程, 如果运行则 kill (批处理导出不需要 GUI)"""
+        import subprocess
+        try:
+            # 查找 XMANAGER.exe 进程
+            result = subprocess.check_output(
+                ['tasklist', '/fi', 'IMAGENAME eq XMANAGER.exe', '/fo', 'csv'],
+                shell=True, timeout=10
+            ).decode('gbk', errors='replace')
+            if 'XMANAGER.exe' in result:
+                subprocess.call(['taskkill', '/f', '/im', 'XMANAGER.exe'],
+                                shell=True, timeout=10)
+                print('[OutputDxf] XMANAGER.exe 已关闭')
+        except Exception:
+            pass  # 非 Windows 或无权限时静默跳过
+
 
 # ==========================================================================
 # 5. 独立运行 / Genesis 调用入口
