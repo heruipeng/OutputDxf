@@ -358,36 +358,17 @@ class DxfWriter(object):
 
 class GenesisAPI(object):
     """
-    Genesis 2000 数据接口适配层
+    Genesis 2000 数据接口适配层 (纯文件模式)
 
-    优先使用 Genesis 内置 Python API 获取数据;
-    当不在 Genesis 环境中运行时，自动降级为文件模式 (解析 .tgz / 目录)。
-
-    典型 Genesis Python API 调用:
-        import genesis
-        genesis.open_job(job_path)
-        genesis.get_steps(job)
-        genesis.get_layers(step)
-        genesis.get_entities(layer, entity_type='line|arc|poly|surface|pad')
+    Genesis API 对接预留 — 用户后续自行添加 import genesis 相关调用。
+    当前完整实现: tgz 解压 → steps/ 目录扫描 → layers/ 目录扫描。
     """
 
     def __init__(self):
-        self.inside_genesis = False
-        self.genesis_module = None
         self.job_path = ''
         self.steps = []
         self.layers = {}
         self.extracted_dir = ''     # tgz 解压后的真实目录
-        self._init_genesis()
-
-    def _init_genesis(self):
-        """检测是否运行在 Genesis 环境中"""
-        try:
-            import genesis
-            self.genesis_module = genesis
-            self.inside_genesis = True
-        except ImportError:
-            self.inside_genesis = False
 
     # -- Job 操作 ----------------------------------------------------------
 
@@ -395,13 +376,6 @@ class GenesisAPI(object):
         """打开 Genesis Job (tgz自动解压到临时目录)"""
         self.job_path = job_path
         self.extracted_dir = ''
-
-        if self.inside_genesis:
-            try:
-                self.genesis_module.open_job(job_path)
-                return True
-            except Exception:
-                return False
 
         if not os.path.isdir(job_path) and not os.path.isfile(job_path):
             return False
@@ -429,14 +403,6 @@ class GenesisAPI(object):
 
     def get_steps(self):
         """获取 Job 下所有 Step 列表"""
-        if self.inside_genesis:
-            try:
-                self.steps = self.genesis_module.get_steps()
-                return self.steps
-            except Exception:
-                pass
-
-        # 降级: 从文件系统读取
         self.steps = self._scan_steps_fs()
         return self.steps
 
@@ -583,14 +549,6 @@ class GenesisAPI(object):
         """获取指定 Step 下所有图层"""
         if not step_name:
             return []
-
-        if self.inside_genesis:
-            try:
-                layers = self.genesis_module.get_layers(step_name)
-                return layers
-            except Exception:
-                pass
-
         return self._scan_layers_fs(step_name)
 
     def _scan_layers_fs(self, step_name):
@@ -643,12 +601,10 @@ class GenesisAPI(object):
 
     def get_layer_data(self, step_name, layer_name, data_type='all'):
         """
-        提取图层图形数据
+        提取图层图形数据 (预留)
 
-        Args:
-            step_name:  Step 名称
-            layer_name: 图层名称
-            data_type:  数据类型 'all'/'lines'/'pads'/'arcs'/'surfaces'/'drills'
+        TODO: 用户后续在此方法中添加 Genesis API 调用
+        返回空数据 — 当前版本仅实现 Step/Layer 扫描, 图形提取由用户自行对接
 
         Returns:
             dict: {
@@ -656,99 +612,10 @@ class GenesisAPI(object):
                 'circles':   [(cx,cy,radius), ...],
                 'pads':      [(cx,cy,width,height,rotation), ...],
                 'arcs':      [(cx,cy,radius,start_ang,end_ang), ...],
-                'surfaces':  [ [(x,y),...], ... ],   # 多边形轮廓
+                'surfaces':  [ [(x,y),...], ... ],
                 'drills':    [(cx,cy,diameter), ...],
             }
         """
-        result = {
-            'lines':     [],
-            'circles':   [],
-            'pads':      [],
-            'arcs':      [],
-            'surfaces':  [],
-            'drills':    [],
-        }
-
-        if self.inside_genesis:
-            try:
-                return self._get_layer_data_genesis(step_name, layer_name,
-                                                    data_type)
-            except Exception:
-                pass
-
-        return self._get_layer_data_fs(step_name, layer_name, data_type)
-
-    def _get_layer_data_genesis(self, step_name, layer_name, data_type):
-        """通过 Genesis API 提取图形数据"""
-        result = {
-            'lines':     [],
-            'circles':   [],
-            'pads':      [],
-            'arcs':      [],
-            'surfaces':  [],
-            'drills':    [],
-        }
-        try:
-            g = self.genesis_module
-
-            # 提取线段
-            if data_type in ('all', 'lines'):
-                lines = g.get_lines(step_name, layer_name)
-                if lines:
-                    for l in lines:
-                        result['lines'].append(
-                            (float(l.x1), float(l.y1),
-                             float(l.x2), float(l.y2)))
-
-            # 提取焊盘
-            if data_type in ('all', 'pads'):
-                pads = g.get_pads(step_name, layer_name)
-                if pads:
-                    for p in pads:
-                        result['pads'].append(
-                            (float(p.cx), float(p.cy),
-                             float(p.width), float(p.height),
-                             float(getattr(p, 'rotation', 0))))
-
-            # 提取圆弧
-            if data_type in ('all', 'arcs'):
-                arcs = g.get_arcs(step_name, layer_name)
-                if arcs:
-                    for a in arcs:
-                        result['arcs'].append(
-                            (float(a.cx), float(a.cy),
-                             float(a.radius),
-                             float(a.start_angle),
-                             float(a.end_angle)))
-
-            # 提取表面 (多边形)
-            if data_type in ('all', 'surfaces'):
-                surfaces = g.get_surfaces(step_name, layer_name)
-                if surfaces:
-                    for s in surfaces:
-                        pts = [(float(p.x), float(p.y)) for p in s.points]
-                        result['surfaces'].append(pts)
-
-            # 提取钻孔
-            if data_type in ('all', 'drills'):
-                drills = g.get_drills(step_name, layer_name)
-                if drills:
-                    for d in drills:
-                        result['drills'].append(
-                            (float(d.cx), float(d.cy), float(d.diameter)))
-
-        except Exception:
-            pass
-
-        return result
-
-    def _get_layer_data_fs(self, step_name, layer_name, data_type):
-        """
-        从本地文件系统提取图层数据 (主要为独立测试/演示用途)
-        尝试解析 Genesis .tgz 内可能的文本/XML 格式数据
-        """
-        # 降级模式下返回空数据，由后续流程处理
-        # 真正的数据提取需要通过 Genesis API 完成
         return {
             'lines':     [],
             'circles':   [],
