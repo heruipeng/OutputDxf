@@ -315,6 +315,7 @@ class DxfExportApp(object):
         self._setup_root()
         self._setup_fonts()
         self._build_ui()
+        self.genesis_ver = ''
         self.genesis_dir = ''
         self.xmanager_dir = ''
 
@@ -382,6 +383,10 @@ class DxfExportApp(object):
             if p:
                 self.var_output.set(p)
                 print('[OutputDxf] 输出路径已设置: ' + p)
+
+            self.genesis_ver = self.cfg['paths'].get('genesis_ver', '').strip()
+            if os.path.isdir(self.genesis_ver) is False:
+                self._log(u'genesis安装版本异常:%s' % self.genesis_ver)
             self.genesis_dir = self.cfg['paths'].get('genesis_dir', '').strip()
             if os.path.isdir(self.genesis_dir) is False:
                 self._log(u'genesis安装路径异常:%s' % self.genesis_dir)
@@ -972,8 +977,8 @@ class DxfExportApp(object):
         """启动 Genesis 批处理 — 写临时 csh 脚本并调用 get.exe"""
         self._log(','.join([tgz_path,job,step,layer,output_dir,unit,dxf_mode]))
 
-        genesis_dir = os.getenv('GENESIS_DIR','C:/genesis')
-        genesis_edir = genesis_dir + '/e97/get'
+        genesis_dir = self.genesis_dir
+        genesis_edir = genesis_dir + f'/e{self.genesis_ver}/get'
         xmanager_exe = genesis_dir + '/Xmanager139/XMANAGER.exe'
         # project_dir = os.path.dirname(os.path.abspath(__file__))
         guid_script = os.path.join(os.getcwd(), 'import_tgz.csh').replace('\\', '/')
