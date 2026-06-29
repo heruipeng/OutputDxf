@@ -50,12 +50,12 @@ foreach val ($layers)
         # 轮廓模式
         COM output_layer_reset
         COM output_layer_set,layer=$val,angle=0,mirror=no,x_scale=1,y_scale=1,comp=0,polarity=positive,setupfile=,setupfiletmp=,line_units=$unit,gscl_file=,step_scale=no
-        COM output,job=$job,step=$step,format=DXF,dir_path=$output_dir,prefix=,suffix=.dxf,break_sr=yes,break_symbols=yes,break_arc=no,scale_mode=all,surface_mode=contour,min_brush=$min_brush,units=inch,x_anchor=0,y_anchor=0,x_offset=0,y_offset=0,line_units=$unit,override_online=yes,pads_2circles=yes,draft=no,contour_to_hatch=no,pad_outline=yes,output_files=multiple,file_ver=old
+        COM output,job=$job,step=$step,format=DXF,dir_path=$output_dir,prefix=,suffix=.dxf,break_sr=yes,break_symbols=yes,break_arc=no,scale_mode=all,surface_mode=contour,min_brush=$min_brush,units=inch,x_anchor=0,y_anchor=0,x_offset=0,y_offset=0,line_units=$unit,override_online=yes,pads_2circles=yes,draft=no,contour_to_hatch=no,pad_outline=yes,output_files=multiple,file_ver=old,ignore_attr=
     else
         # 实体模式
         COM output_layer_reset
         COM output_layer_set,layer=$val,angle=0,mirror=no,x_scale=1,y_scale=1,comp=0,polarity=positive,setupfile=,setupfiletmp=,line_units=$unit,gscl_file=,step_scale=no
-        COM output,job=$job,step=$step,format=DXF,dir_path=$output_dir,prefix=,suffix=.dxf,break_sr=yes,break_symbols=yes,break_arc=no,scale_mode=all,surface_mode=contour,min_brush=$min_brush,units=inch,x_anchor=0,y_anchor=0,x_offset=0,y_offset=0,line_units=$unit,override_online=yes,pads_2circles=no,draft=no,contour_to_hatch=yes,pad_outline=no,output_files=multiple,file_ver=autocad2002
-    endif
+        COM output,job=$job,step=$step,format=DXF,dir_path=$output_dir,prefix=,suffix=.dxf,break_sr=yes,break_symbols=yes,break_arc=no,scale_mode=all,surface_mode=contour,min_brush=$min_brush,units=inch,x_anchor=0,y_anchor=0,x_offset=0,y_offset=0,line_units=$unit,override_online=yes,pads_2circles=no,draft=no,contour_to_hatch=yes,pad_outline=no,output_files=multiple,file_ver=autocad2002,ignore_attr=
+endif
 end
 
