@@ -173,13 +173,63 @@ class JobAdapter(object):
                 with open(marker, 'r') as f:
                     if f.read().strip() == self.job_path:
                         return self.extracted_dir
-            except Exception:
-                pass
+            except Exception as err:
+                print(err, '***1')
         if os.path.isdir(self.extracted_dir):
             try:
                 shutil.rmtree(self.extracted_dir)
-            except Exception:
-                pass
+            except Exception as err:
+                print(err, '***22')
+        if not os.path.isdir(self.extracted_dir):
+            os.makedirs(self.extracted_dir)
+
+        # 只清洗文件名非法字符，保留路径分隔符 /
+        def clean_tar_member(member_full_path):
+            # 分割目录与文件名
+            dir_part, file_part = os.path.split(member_full_path)
+            # 仅替换文件名里Windows非法字符，不再处理 / \
+            invalid_chars = r':*?"<>|'
+            safe_file = file_part
+            for c in invalid_chars:
+                safe_file = safe_file.replace(c, '_')
+            # 重新拼接路径，原有目录结构不变
+            return os.path.join(dir_part, safe_file).replace(os.sep, '/')
+
+        try:
+            with tarfile.open(self.job_path, 'r:gz') as tf:
+                for member in tf.getmembers():
+                    safe_name = clean_tar_member(member.name)
+                    member.name = safe_name
+                    tf.extract(member, path=self.extracted_dir)
+            with open(marker, 'w') as f:
+                f.write(self.job_path)
+        except Exception as err:
+            print(err, '***3')
+            return None
+        return self.extracted_dir
+
+    def _extract_tgz_old(self):
+        if not self._is_tgz():
+            return self.job_path
+        name = self.job_name()
+        if sys.platform == 'win32':
+            tmp_root = os.path.join('C:', os.sep, 'tmp')
+        else:
+            tmp_root = os.path.join(os.sep, 'tmp')
+        self.extracted_dir = os.path.join(tmp_root, name)
+        marker = os.path.join(self.extracted_dir, '.extracted')
+        if os.path.isdir(self.extracted_dir) and os.path.isfile(marker):
+            try:
+                with open(marker, 'r') as f:
+                    if f.read().strip() == self.job_path:
+                        return self.extracted_dir
+            except Exception as err:
+                print(err,'***1')
+        if os.path.isdir(self.extracted_dir):
+            try:
+                shutil.rmtree(self.extracted_dir)
+            except Exception as err:
+                print(err,'***22')
         if not os.path.isdir(self.extracted_dir):
             os.makedirs(self.extracted_dir)
         try:
@@ -187,7 +237,8 @@ class JobAdapter(object):
                 tf.extractall(self.extracted_dir)
             with open(marker, 'w') as f:
                 f.write(self.job_path)
-        except Exception:
+        except Exception as err:
+            print(err,'***3')
             return None
         return self.extracted_dir
 
