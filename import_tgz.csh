@@ -11,11 +11,19 @@ set unit = $6
 set dxf_mode = $7
 
 # 全局把 ; 换成空格
-set layers = (`echo $layer | tr ',' ' '`)
+# set layers = (`echo $layer | tr ',' ' '`)
+# 判断字符串里是否包含 ;
+if ( "$layer" =~ *,* ) then
+    # 有分号，分割为数组
+    set layers = (`echo "$layer" | tr ',' ' '`)
+else
+    # 无分号，整串作为数组唯一元素
+    set layers = ( "$layer" )
+endif
 echo $layers $job $step $layer $output_dir $unit $dxf_mode
-# if ($dxf_mode == "yes") then
-#     echo "\n$dxf_mode"
-# endif
+if ($dxf_mode == "yes") then
+    echo "\n$dxf_mode"
+endif
 
 DO_INFO -t job -e $job -m script -d EXISTS
 if ($gEXISTS == "yes") then

@@ -982,9 +982,23 @@ class DxfExportApp(object):
         genesis_dir = self.genesis_dir
         genesis_edir = genesis_dir + f'/e{self.genesis_ver}/get'
         xmanager_exe = genesis_dir + '/Xmanager139/XMANAGER.exe'
-        project_dir = os.path.dirname(os.path.abspath(__file__))
+        # project_dir = os.path.dirname(os.path.abspath(__file__))
+
+        def get_resource_root():
+            # 判断是否PyInstaller打包
+            if hasattr(sys, '_MEIPASS'):
+                # 单文件打包临时解压根目录（内置资源用这个）
+                # 若外部文件和exe同级，改用 os.path.dirname(sys.executable)
+                exe_path = sys.executable
+                return os.path.dirname(os.path.abspath(exe_path))
+            else:
+                # 开发环境，取脚本目录
+                return os.path.dirname(os.path.abspath(__file__))
+
+        root_dir = get_resource_root()
+        guid_script = os.path.join(root_dir, "import_tgz.csh").replace("\\", "/")
         # guid_script = os.path.join(project_dir, 'import_tgz.csh').replace('\\', '/')
-        guid_script = os.path.join(os.getcwd(), 'import_tgz.csh').replace('\\', '/')
+        # guid_script = os.path.join(os.getcwd(), 'import_tgz.csh').replace('\\', '/')
         run_pid = os.getpid()
         run_get_file = 'C:/tmp/run_get_%s.csh' % run_pid
 
