@@ -950,15 +950,17 @@ class DxfExportApp(object):
             messagebox.showwarning(u'提示', u'请至少选择一个图层')
             return
 
-        # mode_text = u'轮廓' if dxf_mode == 'outline' else u'实体'
-
+        mode_text = u'轮廓' if dxf_mode == 'yes' else u'实体'
+        output_dir = output_dir + '/' + job
+        if os.path.exists(output_dir):
+            os.makedirs(output_dir)
         # 参数汇总
         self._log(u'========== 导出参数确认 ==========')
         self._log(u'Job:     %s' % job_path)
         self._log(u'Step:    %s' % step)
         self._log(u'单位:    %s' % unit)
         self._log(u'输出:    %s' % output_dir)
-        self._log(u'模式:    %s' % dxf_mode)
+        self._log(u'模式:    %s' % mode_text)
         self._log(u'图层:    %s' % (', '.join(selected_layers)))
         self._log(u'=====================================')
 
@@ -973,15 +975,16 @@ class DxfExportApp(object):
         # self.status_label.config(text=u'就绪 (导出逻辑待添加)', fg=self.GRAY)
         self._load_job_info(job_path,job,step,','.join(selected_layers),output_dir,unit,dxf_mode)
 
-    def _load_job_info(self,tgz_path,job,step,layer,output_dir,unit,dxf_mode):
+    def _load_job_info(self,tgz_path,job,step,layers,output_dir,unit,dxf_mode):
         """启动 Genesis 批处理 — 写临时 csh 脚本并调用 get.exe"""
-        self._log(','.join([tgz_path,job,step,layer,output_dir,unit,dxf_mode]))
+        self._log(','.join([tgz_path,job,step,layers,output_dir,unit,dxf_mode]))
 
         genesis_dir = self.genesis_dir
         genesis_edir = genesis_dir + f'/e{self.genesis_ver}/get'
         xmanager_exe = genesis_dir + '/Xmanager139/XMANAGER.exe'
-        # project_dir = os.path.dirname(os.path.abspath(__file__))
-        guid_script = os.path.join(os.getcwd(), 'import_tgz.csh').replace('\\', '/')
+        project_dir = os.path.dirname(os.path.abspath(__file__))
+        guid_script = os.path.join(project_dir, 'import_tgz.csh').replace('\\', '/')
+        # guid_script = os.path.join(os.getcwd(), 'import_tgz.csh').replace('\\', '/')
         run_pid = os.getpid()
         run_get_file = 'C:/tmp/run_get_%s.csh' % run_pid
 
@@ -1004,7 +1007,7 @@ class DxfExportApp(object):
             return
 
         # 写入 csh 启动脚本
-        params = [tgz_path, job, step, layer, output_dir, unit, dxf_mode]
+        params = [tgz_path, job, step, layers, output_dir, unit, dxf_mode]
         csh_content = (
             '#!/c:/bin/csh\n'
             'setenv GENESIS_DIR %s\n'
