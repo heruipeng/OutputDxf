@@ -952,7 +952,7 @@ class DxfExportApp(object):
 
         mode_text = u'轮廓' if dxf_mode == 'yes' else u'实体'
         output_dir = output_dir + '/' + job
-        if os.path.exists(output_dir):
+        if os.path.exists(output_dir) is False:
             os.makedirs(output_dir)
         # 参数汇总
         self._log(u'========== 导出参数确认 ==========')
