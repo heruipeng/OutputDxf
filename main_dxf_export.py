@@ -964,13 +964,13 @@ class DxfExportApp(object):
         self._log(u'图层:    %s' % (', '.join(selected_layers)))
         self._log(u'=====================================')
 
-        messagebox.showinfo(u'准备就绪',
-            u'参数校验通过!\n\n'
-            u'选中 %d 个图层\n'
-            u'DXF 模式: %s\n'
-            u'输出目录: %s\n\n'
-            u'导出逻辑待后续添加 (在 get_layer_data() 中对接 Genesis API)。' %
-            (len(selected_layers), dxf_mode, output_dir))
+        # messagebox.showinfo(u'准备就绪',
+        #     u'参数校验通过!\n\n'
+        #     u'选中 %d 个图层\n'
+        #     u'DXF 模式: %s\n'
+        #     u'输出目录: %s\n\n'
+        #     u'导出逻辑待后续添加 (在 get_layer_data() 中对接 Genesis API)。' %
+        #     (len(selected_layers), dxf_mode, output_dir))
 
         # self.status_label.config(text=u'就绪 (导出逻辑待添加)', fg=self.GRAY)
         self._load_job_info(job_path,job,step,','.join(selected_layers),output_dir,unit,dxf_mode)
@@ -983,8 +983,8 @@ class DxfExportApp(object):
         genesis_edir = genesis_dir + f'/e{self.genesis_ver}/get'
         xmanager_exe = genesis_dir + '/Xmanager139/XMANAGER.exe'
         project_dir = os.path.dirname(os.path.abspath(__file__))
-        guid_script = os.path.join(project_dir, 'import_tgz.csh').replace('\\', '/')
-        # guid_script = os.path.join(os.getcwd(), 'import_tgz.csh').replace('\\', '/')
+        # guid_script = os.path.join(project_dir, 'import_tgz.csh').replace('\\', '/')
+        guid_script = os.path.join(os.getcwd(), 'import_tgz.csh').replace('\\', '/')
         run_pid = os.getpid()
         run_get_file = 'C:/tmp/run_get_%s.csh' % run_pid
 
